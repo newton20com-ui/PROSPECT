@@ -27,8 +27,15 @@ STATE_FILE = BASE_DIR / "leads_state.json"
 
 
 def lead_to_dict(b: BusinessLead) -> dict:
+    from urllib.parse import quote_plus
     phone_display = b.phone_clean or b.phone_raw or "Non renseigné"
     is_mobile = is_likely_mobile_bf(b.phone_clean)
+    has_coords = bool(b.lat and b.lon and b.city != "Audit Direct")
+    if has_coords:
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={b.lat},{b.lon}"
+    else:
+        q = quote_plus(f"{b.name} {b.city if b.city != 'Audit Direct' else 'Burkina Faso'}")
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={q}"
     return {
         "name": b.name,
         "city": b.city,
@@ -46,6 +53,9 @@ def lead_to_dict(b: BusinessLead) -> dict:
         "score": b.lead_score,
         "pitch": b.pitch_angle,
         "whatsapp_url": b.whatsapp_url,
+        "lat": b.lat,
+        "lon": b.lon,
+        "maps_url": maps_url,
     }
 
 
@@ -531,6 +541,7 @@ INDEX_HTML = """<!DOCTYPE html>
     .btn-wa { background: #10b981; color: #052e16; }
     .btn-fb { background: #1877f2; color: #ffffff; }
     .btn-call { background: #3b82f6; color: #ffffff; }
+    .btn-maps { background: #0f766e; color: #ffffff; border: 1px solid #14b8a6; }
     .btn-copy { background: #1e293b; color: var(--text); border: 1px solid var(--border); }
 
     .empty-box {
@@ -954,6 +965,9 @@ INDEX_HTML = """<!DOCTYPE html>
           ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Facebook</a>`
           : '';
 
+        const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.name + ' ' + (b.city && b.city !== 'Audit Direct' ? b.city : 'Burkina Faso'))}`;
+        const mapsBtn = `<a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>`;
+
         const shortSector = SECTOR_LABELS[b.sector_key] || b.sector;
 
         return `
@@ -974,7 +988,7 @@ INDEX_HTML = """<!DOCTYPE html>
               </div>
 
               <div class="meta-chips">
-                <span class="meta-item">📍 ${b.city} (${b.neighborhood})</span>
+                <span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${b.city} (${b.neighborhood})</a></span>
                 <span class="meta-item">${shortSector}</span>
                 <span class="meta-item">📞 <strong>${b.phone}</strong></span>
                 <span class="meta-item">${siteHtml}</span>
@@ -991,6 +1005,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
             <div class="actions">
               ${contactBtn}
+              ${mapsBtn}
               ${fbBtn}
               <button class="btn btn-copy" onclick="navigator.clipboard.writeText(${JSON.stringify(b.pitch).replace(/"/g, '&quot;')}); this.textContent='✅ Copié !'; setTimeout(()=>this.textContent='📋 Copier Pitch', 1500);">📋 Copier Pitch</button>
             </div>
