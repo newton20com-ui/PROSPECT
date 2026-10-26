@@ -59,17 +59,45 @@ def lead_to_dict(b: BusinessLead) -> dict:
     }
 
 
+STATE_LOCK = threading.Lock()
+
+
 def load_saved_leads() -> list[dict]:
-    if STATE_FILE.exists():
-        try:
-            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+    with STATE_LOCK:
+        if STATE_FILE.exists():
+            try:
+                return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                pass
     return []
 
 
 def save_leads(leads_dicts: list[dict]) -> None:
-    STATE_FILE.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+    with STATE_LOCK:
+        STATE_FILE.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
+    """Fusionne les nouveaux leads avec les existants sans écraser les anciens scans."""
+    merged_map: dict[str, dict] = {}
+    for item in existing:
+        key = f"{item.get('name', '').strip().lower()}|{item.get('city', '').strip().lower()}"
+        if key:
+            merged_map[key] = item
+    for item in incoming:
+        key = f"{item.get('name', '').strip().lower()}|{item.get('city', '').strip().lower()}"
+        if key:
+            merged_map[key] = item
+    result = list(merged_map.values())
+    result.sort(
+        key=lambda b: (
+            int(b.get("score", 0)),
+            b.get("phone_type") == "MOBILE_WHATSAPP",
+            b.get("phone_type") != "AUCUN",
+        ),
+        reverse=True,
+    )
+    return result
 
 
 INDEX_HTML = """<!DOCTYPE html>
@@ -683,6 +711,7 @@ INDEX_HTML = """<!DOCTYPE html>
         <button class="btn btn-reset" onclick="resetFilters()">🔄 Tout</button>
       </div>
       <div class="selects-grid">
+        <select id="cityFilter"></select>
         <select id="statusFilter"></select>
         <select id="sectorFilter"></select>
         <select id="phoneFilter"></select>
@@ -691,6 +720,10 @@ INDEX_HTML = """<!DOCTYPE html>
 
     <div class="filter-summary">
       <span id="filterCountText">Chargement...</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-reset" style="padding:4px 9px; font-size:0.74rem; min-height:28px;" onclick="exportLeadsCsv()">📥 Export CSV</button>
+        <button class="btn btn-reset" style="padding:4px 9px; font-size:0.74rem; min-height:28px; color:#fca5a5;" onclick="clearAllLeads()">🗑️ Vider</button>
+      </div>
     </div>
 
     <div id="leadContainer" class="lead-list"></div>
@@ -698,6 +731,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
   <script>
     let LEADS = [];
+    const STORAGE_KEY = 'prospectbf_leads_v26';
 
     const SECTOR_LABELS = {
       all: "🏢 Tous les secteurs",
@@ -718,6 +752,38 @@ INDEX_HTML = """<!DOCTYPE html>
       securite: "🛡️ Sécurité",
       entreprise: "💼 Bureaux, IT & Conseil"
     };
+
+    function dedupeAndSortLeads(list) {
+      const map = new Map();
+      list.forEach(item => {
+        if (!item || !item.name) return;
+        const key = `${item.name.trim().toLowerCase()}|${(item.city || '').trim().toLowerCase()}`;
+        map.set(key, item);
+      });
+      const arr = Array.from(map.values());
+      arr.sort((a, b) => {
+        if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+        const aMob = a.phone_type === 'MOBILE_WHATSAPP' ? 1 : 0;
+        const bMob = b.phone_type === 'MOBILE_WHATSAPP' ? 1 : 0;
+        return bMob - aMob;
+      });
+      return arr;
+    }
+
+    function saveLocalBackup() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(LEADS));
+      } catch (e) {}
+    }
+
+    function loadLocalBackup() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
 
     function switchTab(mode) {
       document.getElementById('panelScan').classList.toggle('open', mode === 'scan');
@@ -760,6 +826,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     function resetFilters() {
       document.getElementById('searchInput').value = '';
+      document.getElementById('cityFilter').value = 'ALL';
       document.getElementById('statusFilter').value = 'ALL';
       document.getElementById('sectorFilter').value = 'ALL';
       document.getElementById('phoneFilter').value = 'ALL';
@@ -768,13 +835,24 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     function populateFilterDropdowns() {
+      const cityEl = document.getElementById('cityFilter');
       const statusEl = document.getElementById('statusFilter');
       const sectorEl = document.getElementById('sectorFilter');
       const phoneEl = document.getElementById('phoneFilter');
 
+      const curCity = cityEl.value || 'ALL';
       const curStatus = statusEl.value || 'ALL';
       const curSector = sectorEl.value || 'ALL';
       const curPhone = phoneEl.value || 'ALL';
+
+      const cities = Array.from(new Set(LEADS.map(b => b.city).filter(Boolean)));
+      let cityHtml = `<option value="ALL">📍 Toutes villes (${LEADS.length})</option>`;
+      cities.forEach(c => {
+        const cnt = LEADS.filter(b => b.city === c).length;
+        cityHtml += `<option value="${c}">📍 ${c} (${cnt})</option>`;
+      });
+      cityEl.innerHTML = cityHtml;
+      cityEl.value = cities.includes(curCity) ? curCity : 'ALL';
 
       const countStatus = (st) => LEADS.filter(b => b.status === st).length;
       const countHasFb = LEADS.filter(b => Boolean(b.facebook_url)).length;
@@ -790,7 +868,7 @@ INDEX_HTML = """<!DOCTYPE html>
       `;
       statusEl.value = curStatus;
 
-      let sectorHtml = `<option value="ALL">🏢 Tous les secteurs (${LEADS.length})</option>`;
+      let sectorHtml = `<option value="ALL">🏢 Tous secteurs (${LEADS.length})</option>`;
       Object.keys(SECTOR_LABELS).forEach(k => {
         if (k === 'all') return;
         const c = LEADS.filter(b => b.sector_key === k).length;
@@ -804,7 +882,7 @@ INDEX_HTML = """<!DOCTYPE html>
       const cNone = LEADS.filter(b => b.phone_type === 'AUCUN').length;
 
       phoneEl.innerHTML = `
-        <option value="ALL">📞 Tous les contacts (${LEADS.length})</option>
+        <option value="ALL">📞 Tous contacts (${LEADS.length})</option>
         <option value="MOBILE_WHATSAPP">💬 Mobile WhatsApp (${cMob})</option>
         <option value="FIXE_ONATEL">☎️ Fixe ONATEL (${cFix})</option>
         <option value="AUCUN">🌐 Web sans numéro (${cNone})</option>
@@ -813,15 +891,60 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     async function loadInitialLeads() {
+      const localLeads = loadLocalBackup();
       try {
         const res = await fetch('/api/leads');
         const data = await res.json();
-        LEADS = data.leads || [];
-        populateFilterDropdowns();
-        render();
+        const serverLeads = data.leads || [];
+        LEADS = dedupeAndSortLeads([...serverLeads, ...localLeads]);
+        saveLocalBackup();
       } catch (e) {
-        console.error(e);
+        LEADS = localLeads;
       }
+      populateFilterDropdowns();
+      render();
+    }
+
+    async function clearAllLeads() {
+      if (!confirm('Voulez-vous vraiment vider toute la liste actuelle ?')) return;
+      LEADS = [];
+      localStorage.removeItem(STORAGE_KEY);
+      try {
+        await fetch('/api/clear', { method: 'POST' });
+      } catch (e) {}
+      populateFilterDropdowns();
+      render();
+      showBanner('🗑️ Liste vidée. Lance un nouveau scan quand tu veux !');
+    }
+
+    function exportLeadsCsv() {
+      if (!LEADS.length) {
+        showBanner('⚠️ Aucune entreprise à exporter.', true);
+        return;
+      }
+      const headers = ['Nom', 'Ville', 'Quartier', 'Secteur', 'Telephone', 'Type_Tel', 'Statut_Digital', 'Score', 'Site_Web', 'Facebook', 'Google_Maps', 'Problemes'];
+      const rows = LEADS.map(b => [
+        b.name || '',
+        b.city || '',
+        b.neighborhood || '',
+        b.sector || '',
+        b.phone || '',
+        b.phone_type || '',
+        b.status || '',
+        b.score || 0,
+        b.website || '',
+        b.facebook_url || '',
+        b.maps_url || '',
+        (b.issues || []).join(' | ')
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const csvContent = '\\uFEFF' + headers.join(',') + '\\n' + rows.join('\\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `prospectbf_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     async function runSingleAudit() {
@@ -842,7 +965,8 @@ INDEX_HTML = """<!DOCTYPE html>
         });
         const data = await res.json();
         if (data.lead) {
-          LEADS.unshift(data.lead);
+          LEADS = dedupeAndSortLeads([data.lead, ...LEADS]);
+          saveLocalBackup();
           resetFilters();
           populateFilterDropdowns();
           render();
@@ -872,11 +996,13 @@ INDEX_HTML = """<!DOCTYPE html>
         });
         const data = await res.json();
         if (data.leads) {
-          LEADS = data.leads;
-          resetFilters();
+          const prevCount = LEADS.length;
+          LEADS = dedupeAndSortLeads([...LEADS, ...data.leads]);
+          saveLocalBackup();
           populateFilterDropdowns();
           render();
-          showBanner(`✅ ${LEADS.length} entreprises auditées en direct !`);
+          const added = Math.max(0, LEADS.length - prevCount);
+          showBanner(`✅ Scan terminé : ${data.leads.length} auditées (${added} nouvelles ajoutées, total ${LEADS.length}) !`);
         }
       } catch (err) {
         showBanner(`❌ Erreur : ${err}`, true);
@@ -896,6 +1022,7 @@ INDEX_HTML = """<!DOCTYPE html>
     function render() {
       updateKPIs();
       const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const cf = document.getElementById('cityFilter').value || 'ALL';
       const st = document.getElementById('statusFilter').value || 'ALL';
       const sec = document.getElementById('sectorFilter').value || 'ALL';
       const pf = document.getElementById('phoneFilter').value || 'ALL';
@@ -904,6 +1031,9 @@ INDEX_HTML = """<!DOCTYPE html>
       highlightActiveKpi(st);
 
       const filtered = LEADS.filter(item => {
+        if (cf !== 'ALL' && item.city !== cf) {
+          return false;
+        }
         if (st === 'HAS_FACEBOOK') {
           if (!item.facebook_url) return false;
         } else if (st !== 'ALL' && item.status !== st) {
@@ -965,6 +1095,10 @@ INDEX_HTML = """<!DOCTYPE html>
           ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Facebook</a>`
           : '';
 
+        const copyBtn = !b.whatsapp_url
+          ? `<button class="btn btn-copy" onclick="navigator.clipboard.writeText(${JSON.stringify(b.pitch).replace(/"/g, '&quot;')}); this.textContent='✅ Copié !'; setTimeout(()=>this.textContent='📋 Copier Pitch', 1500);">📋 Copier Pitch</button>`
+          : '';
+
         const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.name + ' ' + (b.city && b.city !== 'Audit Direct' ? b.city : 'Burkina Faso'))}`;
         const mapsBtn = `<a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>`;
 
@@ -1007,7 +1141,7 @@ INDEX_HTML = """<!DOCTYPE html>
               ${contactBtn}
               ${mapsBtn}
               ${fbBtn}
-              <button class="btn btn-copy" onclick="navigator.clipboard.writeText(${JSON.stringify(b.pitch).replace(/"/g, '&quot;')}); this.textContent='✅ Copié !'; setTimeout(()=>this.textContent='📋 Copier Pitch', 1500);">📋 Copier Pitch</button>
+              ${copyBtn}
             </div>
           </div>
         `;
@@ -1015,6 +1149,7 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     document.getElementById('searchInput').addEventListener('input', render);
+    document.getElementById('cityFilter').addEventListener('change', render);
     document.getElementById('statusFilter').addEventListener('change', render);
     document.getElementById('sectorFilter').addEventListener('change', render);
     document.getElementById('phoneFilter').addEventListener('change', render);
@@ -1055,6 +1190,11 @@ class ProspectHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
 
+        if parsed.path == "/api/clear":
+            save_leads([])
+            self._send_json({"ok": True})
+            return
+
         if parsed.path == "/api/audit-single":
             name = body.get("name", "Entreprise").strip() or "Entreprise"
             sector_key = body.get("sector_key", "entreprise").strip() or "entreprise"
@@ -1080,8 +1220,8 @@ class ProspectHandler(BaseHTTPRequestHandler):
             lead_dict = lead_to_dict(audited)
 
             current = load_saved_leads()
-            current.insert(0, lead_dict)
-            save_leads(current)
+            merged = merge_leads(current, [lead_dict])
+            save_leads(merged)
             self._send_json({"lead": lead_dict})
             return
 
@@ -1100,9 +1240,10 @@ class ProspectHandler(BaseHTTPRequestHandler):
             )
             export_csv(audited_leads, BASE_DIR / f"leads_{city}.csv")
 
-            leads_dicts = [lead_to_dict(b) for b in audited_leads]
-            save_leads(leads_dicts)
-            self._send_json({"leads": leads_dicts})
+            incoming_dicts = [lead_to_dict(b) for b in audited_leads]
+            merged_dicts = merge_leads(load_saved_leads(), incoming_dicts)
+            save_leads(merged_dicts)
+            self._send_json({"leads": merged_dicts})
             return
 
         self._send_json({"error": "Route inconnue"}, status=404)
