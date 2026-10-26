@@ -1,0 +1,1 @@
+# ProspectBF utilise 100% la bibliothèque standard de Python (aucune dépendance externe requise)

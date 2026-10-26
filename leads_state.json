@@ -1,0 +1,644 @@
+[
+  {
+    "name": "Entreprise Auditée",
+    "city": "Audit Direct",
+    "neighborhood": "Saisie manuelle",
+    "sector": "🏗️ BTP, Quincailleries, Énergie & Artisans",
+    "sector_key": "btp",
+    "phone": "Non renseigné",
+    "phone_type": "AUCUN",
+    "tel_url": "",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 50,
+    "pitch": "Bonjour Entreprise Auditée, en cherchant vos services (🏗️ BTP, Quincailleries, Énergie & Artisans) à Audit Direct, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "Sigma Burkina",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue de la Révolution",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22625330525",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+22625330525",
+    "website": "http://www.sigmaburkina.com",
+    "facebook_url": "",
+    "status": "SITE_MORT",
+    "response_ms": 3135,
+    "issues": [
+      "Site hors-ligne (Domaine expiré ou serveur hors-ligne)"
+    ],
+    "score": 96,
+    "pitch": "Bonjour Sigma Burkina, saviez-vous que votre site web (http://www.sigmaburkina.com) est actuellement inaccessible (Domaine expiré ou serveur hors-ligne) ? Vous avez déjà investi dedans mais vos clients ne peuvent plus vous voir. Je peux le réparer et le moderniser rapidement.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "Global Group International",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22625655619",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+22625655619",
+    "website": "http://www.globalgroupinternationalsarl.com",
+    "facebook_url": "",
+    "status": "SITE_MORT",
+    "response_ms": 3134,
+    "issues": [
+      "Site hors-ligne (Domaine expiré ou serveur hors-ligne)"
+    ],
+    "score": 96,
+    "pitch": "Bonjour Global Group International, saviez-vous que votre site web (http://www.globalgroupinternationalsarl.com) est actuellement inaccessible (Domaine expiré ou serveur hors-ligne) ? Vous avez déjà investi dedans mais vos clients ne peuvent plus vous voir. Je peux le réparer et le moderniser rapidement.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "Natur'Elle & Belle",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22672386051",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22672386051",
+    "website": "https://www.facebook.com/photo.php?fbid=10207731663511546&set=gm.198352627163613&type=3",
+    "facebook_url": "https://www.facebook.com/photo.php?fbid=10207731663511546&set=gm.198352627163613&type=3",
+    "status": "FACEBOOK_SEUL",
+    "response_ms": 0,
+    "issues": [
+      "Utilise uniquement une page Facebook/Réseaux Sociaux (aucun site web propre)",
+      "Invisible sur les recherches Google classiques hors Facebook"
+    ],
+    "score": 86,
+    "pitch": "Bonjour Natur'Elle & Belle, j'ai vu votre page Facebook (https://www.facebook.com/photo.php?fbid=10207731663511546&set=gm.198352627163613&type=3), mais vous n'avez pas encore de site web professionnel à votre nom. À Ouagadougou, beaucoup de clients et entreprises cherchent sur Google avant de commander : je peux transformer votre page Facebook en vrai site rapide avec catalogue/réservation relié directement à votre WhatsApp.",
+    "whatsapp_url": "https://wa.me/22672386051?text=Bonjour%20Natur%27Elle%20%26%20Belle%2C%20j%27ai%20vu%20votre%20page%20Facebook%20%28https%3A//www.facebook.com/photo.php%3Ffbid%3D10207731663511546%26set%3Dgm.198352627163613%26type%3D3%29%2C%20mais%20vous%20n%27avez%20pas%20encore%20de%20site%20web%20professionnel%20%C3%A0%20votre%20nom.%20%C3%80%20Ouagadougou%2C%20beaucoup%20de%20clients%20et%20entreprises%20cherchent%20sur%20Google%20avant%20de%20commander%20%3A%20je%20peux%20transformer%20votre%20page%20Facebook%20en%20vrai%20site%20rapide%20avec%20catalogue/r%C3%A9servation%20reli%C3%A9%20directement%20%C3%A0%20votre%20WhatsApp."
+  },
+  {
+    "name": "fasodrink",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Simon Compaoré",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22674035657",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22674035657",
+    "website": "https://fr-fr.facebook.com/fasodrink/",
+    "facebook_url": "https://fr-fr.facebook.com/fasodrink/",
+    "status": "FACEBOOK_SEUL",
+    "response_ms": 0,
+    "issues": [
+      "Utilise uniquement une page Facebook/Réseaux Sociaux (aucun site web propre)",
+      "Invisible sur les recherches Google classiques hors Facebook"
+    ],
+    "score": 86,
+    "pitch": "Bonjour fasodrink, j'ai vu votre page Facebook (https://fr-fr.facebook.com/fasodrink/), mais vous n'avez pas encore de site web professionnel à votre nom. À Ouagadougou, beaucoup de clients et entreprises cherchent sur Google avant de commander : je peux transformer votre page Facebook en vrai site rapide avec catalogue/réservation relié directement à votre WhatsApp.",
+    "whatsapp_url": "https://wa.me/22674035657?text=Bonjour%20fasodrink%2C%20j%27ai%20vu%20votre%20page%20Facebook%20%28https%3A//fr-fr.facebook.com/fasodrink/%29%2C%20mais%20vous%20n%27avez%20pas%20encore%20de%20site%20web%20professionnel%20%C3%A0%20votre%20nom.%20%C3%80%20Ouagadougou%2C%20beaucoup%20de%20clients%20et%20entreprises%20cherchent%20sur%20Google%20avant%20de%20commander%20%3A%20je%20peux%20transformer%20votre%20page%20Facebook%20en%20vrai%20site%20rapide%20avec%20catalogue/r%C3%A9servation%20reli%C3%A9%20directement%20%C3%A0%20votre%20WhatsApp."
+  },
+  {
+    "name": "Sew'Fest",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22674102505",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22674102505",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Sew'Fest, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22674102505?text=Bonjour%20Sew%27Fest%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Rennaissance Coiffure",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22678256651",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22678256651",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Rennaissance Coiffure, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22678256651?text=Bonjour%20Rennaissance%20Coiffure%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Blanchisserie Lave Repasse",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22675135012",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22675135012",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Blanchisserie Lave Repasse, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22675135012?text=Bonjour%20Blanchisserie%20Lave%20Repasse%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Tinkisso",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Kennedy",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22677691010",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22677691010",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Tinkisso, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22677691010?text=Bonjour%20Tinkisso%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Eclat naturel (Chez Sophia)",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22679178484",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22679178484",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Eclat naturel (Chez Sophia), en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22679178484?text=Bonjour%20Eclat%20naturel%20%28Chez%20Sophia%29%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Sublime",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22672785515",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22672785515",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Sublime, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22672785515?text=Bonjour%20Sublime%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Le Privilège",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Ousmane Sembène",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670234634",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670234634",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Le Privilège, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670234634?text=Bonjour%20Le%20Privil%C3%A8ge%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Pengdwendé et compagnies",
+    "city": "Ouagadougou",
+    "neighborhood": "Rue 15.458",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22671647305",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22671647305",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Pengdwendé et compagnies, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22671647305?text=Bonjour%20Pengdwend%C3%A9%20et%20compagnies%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "P'ti coin des femmes",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22676868731",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22676868731",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour P'ti coin des femmes, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22676868731?text=Bonjour%20P%27ti%20coin%20des%20femmes%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Miqabo Play",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22655500005",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22655500005",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Miqabo Play, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22655500005?text=Bonjour%20Miqabo%20Play%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Hotel du Golf",
+    "city": "Ouagadougou",
+    "neighborhood": "Rue 12.11",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22676658991",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22676658991",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Hotel du Golf, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22676658991?text=Bonjour%20Hotel%20du%20Golf%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Secrétariat Public DELWENDE",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22676112868",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22676112868",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Secrétariat Public DELWENDE, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22676112868?text=Bonjour%20Secr%C3%A9tariat%20Public%20DELWENDE%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Tezgah Wend Multi Services",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670115252",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670115252",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Tezgah Wend Multi Services, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670115252?text=Bonjour%20Tezgah%20Wend%20Multi%20Services%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "ARIS INFORMATIQUE",
+    "city": "Ouagadougou",
+    "neighborhood": "21-05",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670858792",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670858792",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour ARIS INFORMATIQUE, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670858792?text=Bonjour%20ARIS%20INFORMATIQUE%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Boulangerie BARKA",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670250973",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670250973",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Boulangerie BARKA, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670250973?text=Bonjour%20Boulangerie%20BARKA%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Compagnie Albatros",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22678592206",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22678592206",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Compagnie Albatros, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22678592206?text=Bonjour%20Compagnie%20Albatros%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Be Nëëre Naturals & Hair Spa",
+    "city": "Ouagadougou",
+    "neighborhood": "Rue Wid A Biiga",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670428949",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670428949",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Be Nëëre Naturals & Hair Spa, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670428949?text=Bonjour%20Be%20N%C3%AB%C3%ABre%20Naturals%20%26%20Hair%20Spa%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "YENNEGA BARBER SHOP",
+    "city": "Ouagadougou",
+    "neighborhood": "Rue 29.13",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22667846363",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22667846363",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour YENNEGA BARBER SHOP, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22667846363?text=Bonjour%20YENNEGA%20BARBER%20SHOP%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Merveille coiffure",
+    "city": "Ouagadougou",
+    "neighborhood": "Quartier non précisé",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670281680",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670281680",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Merveille coiffure, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670281680?text=Bonjour%20Merveille%20coiffure%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Milding Multi Services",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue du Conseil Economique et Social",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22678185940",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22678185940",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Milding Multi Services, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22678185940?text=Bonjour%20Milding%20Multi%20Services%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Maquis restaurant LA RUCHE",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue de la Liberté",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22676248782",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22676248782",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Maquis restaurant LA RUCHE, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22676248782?text=Bonjour%20Maquis%20restaurant%20LA%20RUCHE%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Liza Mall",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Houari Boumedienne",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22667777726",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22667777726",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Liza Mall, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22667777726?text=Bonjour%20Liza%20Mall%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Flora_VotreFleuriste",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Père Joseph Wresinski",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22670464512",
+    "phone_type": "MOBILE_WHATSAPP",
+    "tel_url": "tel:+22670464512",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 80,
+    "pitch": "Bonjour Flora_VotreFleuriste, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": "https://wa.me/22670464512?text=Bonjour%20Flora_VotreFleuriste%2C%20en%20cherchant%20vos%20services%20%28%F0%9F%9B%92%20Supermarch%C3%A9s%2C%20Boutiques%2C%20%C3%89lectronique%20%26%20Mode%29%20%C3%A0%20Ouagadougou%2C%20j%27ai%20remarqu%C3%A9%20que%20vous%20n%27avez%20pas%20encore%20de%20site%20web/vitrine%20digitale%20reli%C3%A9e%20%C3%A0%20WhatsApp.%20Vos%20futurs%20clients%20vous%20cherchent%20sur%20Google%20%3A%20je%20peux%20vous%20cr%C3%A9er%20une%20vitrine%20professionnelle%20avec%20bouton%20WhatsApp%20direct%20en%2072h."
+  },
+  {
+    "name": "Galerie Nuance",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Yennenga",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22625317274",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+22625317274",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 68,
+    "pitch": "Bonjour Galerie Nuance, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "Secrétariat Public ARIS",
+    "city": "Ouagadougou",
+    "neighborhood": "21-05",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22625350450",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+22625350450",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 68,
+    "pitch": "Bonjour Secrétariat Public ARIS, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "SIPAP Burkina",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue de la croix rouge",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+22625363390",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+22625363390",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 68,
+    "pitch": "Bonjour SIPAP Burkina, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": ""
+  },
+  {
+    "name": "Liz'Sport",
+    "city": "Ouagadougou",
+    "neighborhood": "Avenue Houari Boumedienne",
+    "sector": "🛒 Supermarchés, Boutiques, Électronique & Mode",
+    "sector_key": "commerce",
+    "phone": "+2266777726",
+    "phone_type": "FIXE_ONATEL",
+    "tel_url": "tel:+2266777726",
+    "website": "",
+    "facebook_url": "",
+    "status": "SANS_SITE",
+    "response_ms": 0,
+    "issues": [
+      "Aucun site web ni page digitale référencée"
+    ],
+    "score": 68,
+    "pitch": "Bonjour Liz'Sport, en cherchant vos services (🛒 Supermarchés, Boutiques, Électronique & Mode) à Ouagadougou, j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle avec bouton WhatsApp direct en 72h.",
+    "whatsapp_url": ""
+  }
+]
