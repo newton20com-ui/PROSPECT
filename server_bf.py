@@ -1816,6 +1816,91 @@ INDEX_HTML = """<!DOCTYPE html>
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    /* Pitch Studio Controls & Psychological Pills */
+    .angle-pills-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .angle-pill-btn {
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .angle-pill-btn:hover {
+      background: #1e293b;
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .angle-pill-btn.active-angle {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--blue);
+      color: #93c5fd;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .stage-tabs-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .stage-tab-btn {
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 4px;
+      font-size: 0.70rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .stage-tab-btn:hover {
+      background: #1e293b;
+      color: #fff;
+    }
+
+    .stage-tab-btn.active-stage {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--green);
+      color: #6ee7b7;
+    }
+
+    .copy-strip-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 5px;
+    }
+
+    .pitch-stats-badge {
+      font-size: 0.68rem;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.12);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -1977,6 +2062,28 @@ INDEX_HTML = """<!DOCTYPE html>
               <span class="offer-desc">Top 3 local, Fiche Maps & Avis clients</span>
             </div>
           </button>
+        </div>
+
+        <!-- Quick Global Controls for Copywriting Angle & Cadence -->
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+          <div>
+            <div class="copy-strip-label">🧠 Angle Psychologique Global (Chris Voss • Cialdini • Klaff)</div>
+            <div class="angle-pills-grid" style="margin-bottom:0;">
+              <button type="button" id="topAngle_voss" class="angle-pill-btn active-angle" onclick="setPitchAngle('voss')">🧠 Voss (No-oriented)</button>
+              <button type="button" id="topAngle_diagnostic" class="angle-pill-btn" onclick="setPitchAngle('diagnostic')">🔬 Diagnostic</button>
+              <button type="button" id="topAngle_reciprocity" class="angle-pill-btn" onclick="setPitchAngle('reciprocity')">🎁 Réciprocité</button>
+              <button type="button" id="topAngle_social_proof" class="angle-pill-btn" onclick="setPitchAngle('social_proof')">👥 Preuve Sociale</button>
+            </div>
+          </div>
+          <div>
+            <div class="copy-strip-label">📅 Étape de Relance Globale (Cadence Temporelle)</div>
+            <div class="stage-tabs-row" style="margin-bottom:0;">
+              <button type="button" id="topStage_j0" class="stage-tab-btn active-stage" onclick="setPitchStage('j0')">⚡ J0 Premier Contact</button>
+              <button type="button" id="topStage_j2" class="stage-tab-btn" onclick="setPitchStage('j2')">⏳ J+2 Rappel</button>
+              <button type="button" id="topStage_j5" class="stage-tab-btn" onclick="setPitchStage('j5')">📈 J+5 Valeur FCFA</button>
+              <button type="button" id="topStage_j8" class="stage-tab-btn" onclick="setPitchStage('j8')">🚪 J+8 Clôture Polie</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -2201,6 +2308,167 @@ INDEX_HTML = """<!DOCTYPE html>
     return 'entreprise';
   }
 
+  const SECTOR_METRICS_JS = {
+    hotel: {
+      label: "Hôtels, Auberges & Résidences",
+      salutation: "Monsieur le Gérant",
+      client_term: "voyageurs d'affaires et touristes",
+      loss_desc: "nuitées réservées directement sans commissions",
+      loss_amount: "80 000 à 250 000 FCFA par semaine",
+      value_prop: "un système de réservation de chambres instantané relié directement à votre WhatsApp",
+      competitor_example: "les résidences et hôtels de votre zone"
+    },
+    sante: {
+      label: "Cliniques, Cabinets & Labos",
+      salutation: "Docteur",
+      client_term: "patients recherchant une prise en charge rapide",
+      loss_desc: "consultations spécialisées orientées vers d'autres centres",
+      loss_amount: "150 000 à 500 000 FCFA par mois de soins",
+      value_prop: "une orientation médicale claire et une prise de rendez-vous fluide sur WhatsApp",
+      competitor_example: "les cabinets médicaux et polycliniques concurrents"
+    },
+    pharmacie: {
+      label: "Pharmacies & Dépôts",
+      salutation: "Docteur",
+      client_term: "clients cherchant une officine de garde ou un médicament",
+      loss_desc: "ventes d'ordonnances captées par d'autres officines",
+      loss_amount: "60 000 à 200 000 FCFA par semaine",
+      value_prop: "une fiche Google Maps Top 3 avec bouton d'appel direct et disponibilité WhatsApp",
+      competitor_example: "les officines bien positionnées sur les cartes"
+    },
+    resto: {
+      label: "Restaurants, Cafés & Maquis VIP",
+      salutation: "Monsieur le Promoteur",
+      client_term: "amateurs de bonne table et déjeuners d'affaires",
+      loss_desc: "tables non réservées et commandes traiteurs parties chez vos voisins",
+      loss_amount: "120 000 à 450 000 FCFA par week-end",
+      value_prop: "un menu digital consultable en 1 clic avec commande WhatsApp directe",
+      competitor_example: "les espaces et restaurants prisés du quartier"
+    },
+    btp: {
+      label: "BTP, Quincailleries & Solaire",
+      salutation: "Monsieur le Directeur",
+      client_term: "entrepreneurs, particuliers et maîtres d'ouvrage",
+      loss_desc: "demandes de devis matériaux, forages ou chantiers solaires",
+      loss_amount: "500 000 à plus de 2 500 000 FCFA par marché manqué",
+      value_prop: "un catalogue technique clair et une demande de devis instantanée sur WhatsApp",
+      competitor_example: "les quincailleries modernes et sociétés BTP bien référencées"
+    },
+    auto: {
+      label: "Auto, Location Véhicules & Garages",
+      salutation: "Monsieur le Responsable",
+      client_term: "automobilistes en panne ou clients cherchant une location",
+      loss_desc: "locations de véhicules et réparations mécaniques urgentes",
+      loss_amount: "100 000 à 350 000 FCFA par semaine de location",
+      value_prop: "votre parc automobile repéré en 1 clic sur Google Maps et WhatsApp",
+      competitor_example: "les loueurs et garages les mieux notés de la ville"
+    },
+    commerce: {
+      label: "Supermarchés, Boutiques & Mode",
+      salutation: "Cher Promoteur",
+      client_term: "acheteurs à la recherche d'articles ou équipement",
+      loss_desc: "visiteurs repartis sans acheter faute de catalogue lisible ou de suivi",
+      loss_amount: "150 000 à 600 000 FCFA de chiffre d'affaires mensuel",
+      value_prop: "une vitrine e-commerce épurée couplée au retargeting Meta Ads et WhatsApp",
+      competitor_example: "les boutiques tendance qui captent l'attention sur Facebook et Google"
+    },
+    finance: {
+      label: "Assurances, Microfinance & Cabinets",
+      salutation: "Monsieur le Directeur",
+      client_term: "professionnels et particuliers en quête de solutions financières",
+      loss_desc: "dossiers de crédit, souscriptions d'assurance ou contrats comptables",
+      loss_amount: "300 000 à 1 500 000 FCFA de commissions",
+      value_prop: "un simulateur de devis et un tunnel de contact sécurisé pour vos conseillers",
+      competitor_example: "les cabinets d'assurance et institutions financières leaders"
+    },
+    education: {
+      label: "Universités, Écoles & Formation",
+      salutation: "Monsieur le Fondateur",
+      client_term: "étudiants et parents d'élèves pour les inscriptions",
+      loss_desc: "scolarités de rentrée académique ou formations professionnelles",
+      loss_amount: "400 000 à 1 800 000 FCFA par promotion d'étudiants",
+      value_prop: "la plaquette des filières téléchargeable en ligne et pré-inscription sur WhatsApp",
+      competitor_example: "les instituts et universités privées en tête sur le web"
+    },
+    voyage: {
+      label: "Agences de Voyage & Immobilier",
+      salutation: "Cher Directeur",
+      client_term: "voyageurs pour billets et locataires en quête de logements",
+      loss_desc: "commissions sur billets d'avion et mandats de location ou vente",
+      loss_amount: "150 000 à 750 000 FCFA par transaction manquée",
+      value_prop: "vos offres de vols et annonces immobilières reliées à un canal WhatsApp réactif",
+      competitor_example: "les agences de voyages et cabinets immobiliers majeurs"
+    },
+    agri: {
+      label: "Agriculture, Élevage & Agroalimentaire",
+      salutation: "Cher Promoteur",
+      client_term: "grossistes, restaurateurs et acheteurs d'intrants",
+      loss_desc: "commandes en gros de volailles, céréales, bétail ou semences",
+      loss_amount: "250 000 à 1 200 000 FCFA par commande gros",
+      value_prop: "un bon de commande clair et un canal d'expédition direct sur WhatsApp",
+      competitor_example: "les fermes et distributeurs agroalimentaires connectés"
+    },
+    beaute: {
+      label: "Beauté, Coiffure & Cosmétique",
+      salutation: "Madame la Directrice",
+      client_term: "clientes et clients souhaitant des soins ou produits de beauté",
+      loss_desc: "créneaux de soins non pourvus en semaine et ventes de cosmétiques",
+      loss_amount: "50 000 à 200 000 FCFA par semaine de rendez-vous",
+      value_prop: "la grille des tarifs et la réservation de créneaux en 2 clics sur mobile",
+      competitor_example: "les salons VIP et instituts les plus visibles sur les réseaux"
+    },
+    industrie: {
+      label: "Industrie, Usines & Manufactures",
+      salutation: "Monsieur le Directeur",
+      client_term: "distributeurs, acheteurs industriels et entreprises",
+      loss_desc: "contrats de fourniture industrielle ou partenariats grossistes",
+      loss_amount: "1 000 000 à 5 000 000 FCFA par contrat B2B",
+      value_prop: "une vitrine professionnelle avec fiche technique et contact direct",
+      competitor_example: "les usines et manufactures de référence dans le pays"
+    },
+    event: {
+      label: "Événementiel, Loisirs & Nuit",
+      salutation: "Cher Promoteur",
+      client_term: "organisateurs d'événements, mariages, conférences et soirées",
+      loss_desc: "dates de week-end sans location de salle ou réservation VIP",
+      loss_amount: "300 000 à 1 200 000 FCFA par événement manqué",
+      value_prop: "la visite virtuelle de votre espace et la réservation de date sur WhatsApp",
+      competitor_example: "les complexes et salles de fêtes les plus recherchées"
+    },
+    securite: {
+      label: "Sécurité Privée & Gardiennage",
+      salutation: "Monsieur le Directeur Général",
+      client_term: "sociétés, ONG, résidences et chantiers recherchant un gardiennage",
+      loss_desc: "contrats de surveillance et installations d'alarmes",
+      loss_amount: "400 000 à 2 000 000 FCFA par contrat annuel",
+      value_prop: "une plaquette de sécurité certifiée et un chiffrage rapide envoyé par WhatsApp",
+      competitor_example: "les sociétés de gardiennage recommandées sur le secteur"
+    },
+    entreprise: {
+      label: "Bureaux, Sociétés IT, Conseil & ONG",
+      salutation: "Monsieur le Directeur",
+      client_term: "dirigeants, institutions et partenaires d'affaires",
+      loss_desc: "missions d'expertise, audits ou prestations B2B",
+      loss_amount: "500 000 à 3 000 000 FCFA par mission",
+      value_prop: "un portfolio valorisant votre savoir-faire avec prise de contact rapide",
+      competitor_example: "les cabinets conseils et sociétés réputées à Ouagadougou"
+    }
+  };
+
+  let CURRENT_PITCH_ANGLE = 'voss';
+  let CURRENT_PITCH_STAGE = 'j0';
+
+  try {
+    const savedAngle = localStorage.getItem('prospectbf_pitch_angle');
+    if (savedAngle && ['voss', 'diagnostic', 'reciprocity', 'social_proof'].includes(savedAngle)) {
+      CURRENT_PITCH_ANGLE = savedAngle;
+    }
+    const savedStage = localStorage.getItem('prospectbf_pitch_stage');
+    if (savedStage && ['j0', 'j2', 'j5', 'j8'].includes(savedStage)) {
+      CURRENT_PITCH_STAGE = savedStage;
+    }
+  } catch (e) {}
+
   let ACTIVE_DETAIL_LEAD = null;
 
   function setSalesOffer(offerKey) {
@@ -2213,9 +2481,76 @@ INDEX_HTML = """<!DOCTYPE html>
     ['WEB', 'ADS', 'MAPS'].forEach(k => {
       const btn = document.getElementById('offerBtn_' + k);
       if (btn) btn.classList.toggle('active', k === offerKey);
+      const drawerBtn = document.getElementById('drawerOfferBtn_' + k);
+      if (drawerBtn) drawerBtn.classList.toggle('active-angle', k === offerKey);
     });
     render();
-    if (ACTIVE_DETAIL_LEAD) renderLeadDetailDrawer();
+    if (ACTIVE_DETAIL_LEAD) refreshDrawerPitch();
+  }
+
+  function setPitchAngle(angleKey) {
+    if (!['voss', 'diagnostic', 'reciprocity', 'social_proof'].includes(angleKey)) return;
+    CURRENT_PITCH_ANGLE = angleKey;
+    try {
+      localStorage.setItem('prospectbf_pitch_angle', angleKey);
+    } catch (e) {}
+    ['voss', 'diagnostic', 'reciprocity', 'social_proof'].forEach(a => {
+      const topEl = document.getElementById('topAngle_' + a);
+      if (topEl) topEl.classList.toggle('active-angle', a === angleKey);
+      const btnEl = document.getElementById('btnAngle_' + a);
+      if (btnEl) btnEl.classList.toggle('active-angle', a === angleKey);
+    });
+    refreshDrawerPitch();
+    render();
+  }
+
+  function setPitchStage(stageKey) {
+    if (!['j0', 'j2', 'j5', 'j8'].includes(stageKey)) return;
+    CURRENT_PITCH_STAGE = stageKey;
+    try {
+      localStorage.setItem('prospectbf_pitch_stage', stageKey);
+    } catch (e) {}
+    ['j0', 'j2', 'j5', 'j8'].forEach(s => {
+      const topEl = document.getElementById('topStage_' + s);
+      if (topEl) topEl.classList.toggle('active-stage', s === stageKey);
+      const btnEl = document.getElementById('btnStage_' + s);
+      if (btnEl) btnEl.classList.toggle('active-stage', s === stageKey);
+    });
+    refreshDrawerPitch();
+    render();
+  }
+
+  function refreshDrawerPitch() {
+    if (!ACTIVE_DETAIL_LEAD) return;
+    const lead = ACTIVE_DETAIL_LEAD;
+    const pitchText = generatePitch(lead, CURRENT_OFFER, CURRENT_PITCH_ANGLE, CURRENT_PITCH_STAGE);
+    const ta = document.getElementById('drawerCustomPitch');
+    if (ta) ta.value = pitchText;
+
+    const words = pitchText.trim().split(/\\s+/).filter(Boolean).length;
+    const readSec = Math.max(5, Math.round((words / 180) * 60));
+    const statsEl = document.getElementById('drawerPitchStats');
+    if (statsEl) {
+      statsEl.textContent = `${words} mots • ~${readSec}s de lecture • Réponse en 1 clic`;
+    }
+
+    const waBtn = document.getElementById('drawerWaBtn');
+    if (waBtn && lead.phone_type === 'MOBILE_WHATSAPP' && lead.phone && lead.phone !== 'Non renseigné') {
+      waBtn.href = buildWhatsAppUrl(lead.phone, pitchText);
+    }
+
+    ['WEB', 'ADS', 'MAPS'].forEach(k => {
+      const el = document.getElementById('drawerOfferBtn_' + k);
+      if (el) el.classList.toggle('active-angle', k === CURRENT_OFFER);
+    });
+    ['voss', 'diagnostic', 'reciprocity', 'social_proof'].forEach(a => {
+      const el = document.getElementById('btnAngle_' + a);
+      if (el) el.classList.toggle('active-angle', a === CURRENT_PITCH_ANGLE);
+    });
+    ['j0', 'j2', 'j5', 'j8'].forEach(s => {
+      const el = document.getElementById('btnStage_' + s);
+      if (el) el.classList.toggle('active-stage', s === CURRENT_PITCH_STAGE);
+    });
   }
 
   function buildWhatsAppUrl(phone, pitch) {
@@ -2389,55 +2724,102 @@ INDEX_HTML = """<!DOCTYPE html>
     quickFilterCrm(stageGroup);
   }
 
-  function generatePitch(lead, offer) {
-    const off = offer || CURRENT_OFFER || 'WEB';
-    const name = lead.name || "l'entreprise";
-    const city = lead.city && lead.city !== 'Audit Direct' ? lead.city : 'Burkina Faso';
-    const sector = SECTOR_LABELS[lead.sector_key] || lead.sector || "votre secteur";
-    const neighborhood = lead.neighborhood && lead.neighborhood !== 'Quartier non précisé' ? `vers ${lead.neighborhood}` : `à ${city}`;
-    const status = lead.status || 'SANS_SITE';
-    const issues = lead.issues || [];
+  function generatePitch(lead, offerOverride, angleOverride, stageOverride) {
+    const off = offerOverride || CURRENT_OFFER || 'WEB';
+    const ang = angleOverride || CURRENT_PITCH_ANGLE || 'voss';
+    const stg = stageOverride || CURRENT_PITCH_STAGE || 'j0';
+
+    const name = (lead && lead.name) ? lead.name.trim() : "l'entreprise";
+    const city = (lead && lead.city && lead.city !== 'Audit Direct') ? lead.city : 'Burkina Faso';
+    const rawNeigh = lead && lead.neighborhood ? lead.neighborhood.trim() : '';
+    const neighborhood = (rawNeigh && rawNeigh !== 'Quartier non précisé' && rawNeigh !== 'Saisie manuelle')
+      ? `vers ${rawNeigh}`
+      : `à ${city}`;
+
+    const skey = getLeadSectorKey(lead);
+    const met = SECTOR_METRICS_JS[skey] || SECTOR_METRICS_JS.entreprise;
+    const salutationTitle = met.salutation || 'Monsieur le Responsable';
+    const status = (lead && (lead.status || lead.audit_status)) || 'SANS_SITE';
+    const issues = (lead && lead.issues) || [];
+    const respMs = (lead && lead.response_ms) || 0;
+
+    // RELANCES CADENCÉES (J+2, J+5, J+8)
+    if (stg === 'j2') {
+      return `Bonjour ${salutationTitle} (${name}),\n\nJe me permets de faire remonter mon message précédent concernant le renforcement de votre visibilité ${off} à ${city}.\n\nAvez-vous eu l'opportunité d'en prendre connaissance, ou préférez-vous que nous refassions un point la semaine prochaine ?\n\n👉 Un simple « Oui » ou « Plus tard » me suffit pour adapter mon suivi !`;
+    }
+    if (stg === 'j5') {
+      return `Bonjour ${salutationTitle} (${name}),\n\nPour information, notre analyse du secteur « ${met.label} » à ${city} montre que les entreprises dotées d'une présence ${off} optimisée avec tunnel WhatsApp récupèrent en moyenne ${met.loss_amount} de commandes supplémentaires par mois.\n\n👉 Seriez-vous curieux de voir la simulation chiffrée pour votre établissement ?`;
+    }
+    if (stg === 'j8') {
+      return `Bonjour ${name},\n\nJe suppose que l'optimisation de votre présence ${off} à ${city} n'est pas votre priorité actuellement, et je le respecte tout à fait.\n\nJe classe votre dossier pour ne plus encombrer votre messagerie. Si le sujet redevient d'actualité, vous avez mes coordonnées ici même.\n\nJe vous souhaite plein succès dans le développement de vos activités !`;
+    }
+
+    // J0 PREMIER CONTACT EN 5 MODULES D'ÉLITE
+    let hook = `Bonjour ${salutationTitle} (${name} • ${city}),`;
+
+    let observation = '';
+    let flawFiltered = issues.filter(i => !i.includes('Pixel') && !i.includes('Analytics'));
+    let flawText = flawFiltered.length > 0 ? flawFiltered[0].toLowerCase() : 'la lenteur de chargement sur smartphone';
 
     if (off === 'WEB') {
       if (status === 'SITE_MORT') {
-        return `Bonjour ${name}, je voulais consulter votre site web (${lead.website || 'actuel'}) à ${city} mais il affiche une page d'erreur technique (en panne ou hors-ligne). Vos clients potentiels tombent sur une page cassée : je peux vous le remettre en ligne rapidement avec une refonte moderne et un bouton WhatsApp direct. Dispo pour en parler ?`;
+        observation = `en voulant consulter votre site web (${lead.website || 'actuel'}) ${neighborhood}, j'ai constaté qu'il est en panne et affiche une page d'erreur technique (serveur hors-ligne ou certificat expiré).`;
+      } else if (status === 'SITE_FAIBLE') {
+        const msInfo = respMs > 0 ? ` (${respMs} ms mesurés sur smartphone)` : '';
+        observation = `en visitant votre site (${lead.website}) depuis mon smartphone ${neighborhood}, j'ai relevé des défauts techniques${msInfo} liés à ${flawText}.`;
+      } else if (status === 'FACEBOOK_SEUL') {
+        observation = `votre page Facebook ${neighborhood} est active, mais vous ne disposez pas encore d'un site web officiel professionnel à votre nom.`;
+      } else if (status === 'SANS_SITE') {
+        observation = `en recherchant vos services ${neighborhood}, j'ai remarqué que vous n'avez pas encore de vitrine digitale officielle reliée à WhatsApp.`;
+      } else {
+        observation = `votre site web (${lead.website}) fonctionne bien, mais il lui manque un tunnel de conversion direct vers WhatsApp.`;
       }
-      if (status === 'SITE_FAIBLE') {
-        const flaws = issues.filter(iss => !iss.includes('Pixel') && !iss.includes('Analytics')).slice(0, 2).join(', ').toLowerCase() || "la lenteur sur mobile et l'absence de cadenas SSL sécurisé";
-        return `Bonjour ${name}, j'ai visité votre site web (${lead.website}) depuis mon téléphone à ${city}. J'ai relevé des défauts techniques qui freinent vos clients (${flaws}). Je peux moderniser votre vitrine pour un chargement en 1s sur smartphone avec contact WhatsApp direct. Auriez-vous 5 minutes pour échanger ?`;
+    } else if (off === 'ADS') {
+      if (!lead.has_fb_pixel) {
+        observation = `en analysant votre dispositif digital ${neighborhood}, j'ai noté qu'aucun Pixel Meta / Pixel Facebook n'est configuré : vous perdez vos visiteurs sans pouvoir faire de retargeting publicitaire ou recibler vos prospects.`;
+      } else {
+        observation = `à ${neighborhood}, des centaines de prospects consultent vos publications sans pouvoir les recibler ou les convertir directement en clients.`;
       }
-      if (status === 'FACEBOOK_SEUL') {
-        return `Bonjour ${name}, votre page Facebook à ${city} est active, mais vous n'avez pas de site web officiel. Sur Google, les clients qui cherchent des services de ${sector} commandent chez des concurrents avec vitrine officielle. Je vous propose un site vitrine rapide relié à votre WhatsApp en 72h. Quand seriez-vous disponible ?`;
-      }
-      if (status === 'SANS_SITE') {
-        return `Bonjour ${name}, en recherchant vos services (${sector}) à ${city}, j'ai remarqué que vous n'avez pas encore de vitrine digitale. Vos futurs clients vous cherchent sur Google : je peux vous créer un site vitrine professionnel avec catalogue et bouton WhatsApp direct en 72h. Pouvons-nous échanger quelques minutes ?`;
-      }
-      if (status === 'SITE_OK') {
-        return `Bonjour ${name}, votre site web fonctionne bien. Nous accompagnons les entreprises de ${sector} à ${city} pour y intégrer des fonctionnalités de prise de rendez-vous automatique et un tunnel WhatsApp pour doubler vos demandes de devis. Seriez-vous ouvert à une démonstration ?`;
-      }
-      return `Bonjour ${name}, nous vous proposons un site web moderne, rapide et optimisé mobile avec bouton WhatsApp direct pour booster votre activité à ${city}. Échangeons rapidement !`;
+    } else {
+      observation = `lorsqu'un client recherche des services de ${met.label} ${neighborhood} ou à ${city} directement sur Google Maps depuis son téléphone,`;
     }
 
-    if (off === 'ADS') {
-      const hasPixel = lead.has_fb_pixel;
-      const hasGA = lead.has_google_analytics;
-      if (!hasPixel || !hasGA || issues.some(iss => iss.includes('Pixel') || iss.includes('Analytics'))) {
-        return `Bonjour ${name}, nous avons analysé votre présence digitale à ${city} : vous recevez des visiteurs mais sans Pixel Facebook ni outil de suivi, vous perdez 95% de vos prospects sans pouvoir les recibler. Nous gérons vos publicités sponsorisées Facebook & Instagram ciblées et configurons le pixel de retargeting pour convertir les personnes intéressées directement sur WhatsApp. Avez-vous 5 minutes pour en discuter ?`;
-      }
-      if (lead.facebook_url || status === 'FACEBOOK_SEUL') {
-        return `Bonjour ${name}, j'ai vu votre page Facebook à ${city}. Les publications gratuites ne touchent plus qu'une infime partie de votre audience. Nous pilotons des campagnes de publicités sponsorisées Facebook & Meta Ads ultra-ciblées sur les clients recherchant ${sector} à ${city}, avec recibler des visiteurs pour générer des contacts qualifiés sur WhatsApp. Seriez-vous disponible cette semaine ?`;
-      }
-      return `Bonjour ${name}, à ${city}, vos clients potentiels passent des heures chaque jour sur Facebook et Instagram. Nous créons et gérons des campagnes de publicité sponsorisée Meta Ads pour ${sector} afin de générer des messages de clients qualifiés directement sur votre WhatsApp grâce au ciblage et au retargeting pixel. Quand pouvons-nous en parler ?`;
+    let impact = '';
+    if (ang === 'diagnostic') {
+      impact = `Chaque semaine, plus de 60% des visiteurs mobiles quittent la page sans appeler, ce qui représente un manque à gagner estimé à environ ${met.loss_amount} en ${met.loss_desc}.`;
+    } else if (ang === 'social_proof') {
+      impact = `Pendant ce temps, ${met.competitor_example} captent l'essentiel de ces demandes qualifiées, vous privant d'environ ${met.loss_amount}.`;
+    } else if (ang === 'reciprocity') {
+      impact = `Beaucoup d'entreprises perdent environ ${met.loss_amount} simplement à cause de frictions évitables lors de la première interaction sur mobile.`;
+    } else {
+      impact = `Vos futurs ${met.client_term} hésitent et partent avant de vous contacter, ce qui peut représenter une opportunité manquée de ${met.loss_amount}.`;
     }
 
-    if (off === 'MAPS') {
-      if (lead.neighborhood && lead.neighborhood !== 'Quartier non précisé') {
-        return `Bonjour ${name}, lorsqu'un client recherche "${sector}" ${neighborhood} ou à ${city} sur Google Maps, est-ce que votre entreprise ressort dans les 3 premiers résultats ? Nous optimisons votre visibilité Google Maps (SEO local, Top 3 maps, avis clients et photos) pour capter tous les appels et visites de votre zone. Souhaitez-vous un audit gratuit de votre fiche Maps ?`;
+    let value = '';
+    if (off === 'WEB') {
+      if (status === 'SITE_MORT' || status === 'SITE_FAIBLE') {
+        value = `Je vous propose de corriger cette panne et d'effectuer une refonte moderne de votre vitrine en 72h avec un affichage ultra-rapide en 1 seconde et ${met.value_prop}`;
+      } else {
+        value = `Nous vous mettons en place une vitrine officielle moderne, optimisée pour smartphone et reliée directement à ${met.value_prop}`;
       }
-      return `Bonjour ${name}, à ${city}, la majorité des clients recherchent "${sector}" directement sur Google Maps depuis leur téléphone portable. Nous positionnons votre fiche Google Maps dans le Top 3 local grâce au SEO local et aux avis clients pour multiplier vos appels et visites. Dispo pour un test rapide de votre positionnement ?`;
+    } else if (off === 'ADS') {
+      value = `Nous pilotons vos campagnes de publicité sponsorisée Meta Ads et configurons le pixel de retargeting pour recibler ces visiteurs et les transformer en messages qualifiés sur votre WhatsApp`;
+    } else {
+      value = `Nous positionnons votre établissement dans le Top 3 Google Maps avec référencement SEO local et gestion des avis clients pour capter en priorité tous les appels et visites de votre zone`;
     }
 
-    return `Bonjour ${name}, je vous contacte pour développer la visibilité de votre entreprise à ${city}. Pouvons-nous échanger ?`;
+    let cta = '';
+    if (ang === 'voss') {
+      cta = `Seriez-vous contre l'idée que je vous envoie un aperçu vidéo de 60 secondes sans aucun engagement ?`;
+    } else if (ang === 'diagnostic') {
+      cta = `Avez-vous 2 minutes pour que je vous transmette les détails du test technique directement sur WhatsApp ?`;
+    } else if (ang === 'reciprocity') {
+      cta = `J'ai déjà préparé un modèle adapté à votre activité : souhaitez-vous que je vous le transmette gratuitement ici ?`;
+    } else {
+      cta = `Serait-ce déraisonnable de faire un point de 5 minutes pour comparer votre visibilité avec vos concurrents locaux ?`;
+    }
+
+    return `${hook}\n\nEn observant votre activité, ${observation} ${impact}\n\n${value}.\n\n👉 ${cta}`;
   }
 
   function dedupeAndSortLeads(list) {
@@ -2883,7 +3265,10 @@ INDEX_HTML = """<!DOCTYPE html>
     const scoreColor = b.score >= 85 ? '#ef4444' : (b.score >= 70 ? '#f59e0b' : '#10b981');
     const fullUrl = b.website ? (b.website.startsWith('http') ? b.website : 'http://' + b.website) : '';
     const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.name || '') + ' ' + (b.city || 'Burkina Faso'))}`;
-    const currentPitch = generatePitch(b, CURRENT_OFFER);
+    const currentPitch = generatePitch(b, CURRENT_OFFER, CURRENT_PITCH_ANGLE, CURRENT_PITCH_STAGE);
+    const words = currentPitch.trim().split(/\\s+/).filter(Boolean).length;
+    const readSec = Math.max(5, Math.round((words / 180) * 60));
+    const pitchStatsText = `${words} mots • ~${readSec}s de lecture • Réponse en 1 clic`;
     const encName = safeAttrEnc(b.name || '');
     const encCity = safeAttrEnc(b.city || '');
     const encPhone = safeAttrEnc(b.phone || '');
@@ -2927,14 +3312,29 @@ INDEX_HTML = """<!DOCTYPE html>
       `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" /></div>` +
       `<div class="meta-input-group"><label>📝 Notes & Suivi client</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par pack Web..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div></div>` +
-      `<div class="drawer-section"><div class="drawer-section-title"><span>💬 Studio Pitch Commercial (${escapeHtml(CURRENT_OFFER)})</span></div>` +
-      `<div style="display:flex; gap:6px; margin-bottom:10px;">` +
-      `<button type="button" class="btn btn-reset" style="font-size:0.74rem; padding:6px 8px; min-height:36px; ${CURRENT_OFFER==='WEB'?'border-color:var(--blue); color:#fff;':''}" onclick="setSalesOffer('WEB')">🌐 Offre Web</button>` +
-      `<button type="button" class="btn btn-reset" style="font-size:0.74rem; padding:6px 8px; min-height:36px; ${CURRENT_OFFER==='ADS'?'border-color:var(--blue); color:#fff;':''}" onclick="setSalesOffer('ADS')">📱 Offre Ads</button>` +
-      `<button type="button" class="btn btn-reset" style="font-size:0.74rem; padding:6px 8px; min-height:36px; ${CURRENT_OFFER==='MAPS'?'border-color:var(--blue); color:#fff;':''}" onclick="setSalesOffer('MAPS')">📍 Offre Maps</button>` +
+      `<div class="drawer-section"><div class="drawer-section-title"><span>💬 Studio Copywriting & Psychologie de Vente</span><span id="drawerPitchStats" class="pitch-stats-badge">${pitchStatsText}</span></div>` +
+      `<div class="copy-strip-label">🎯 1. Service commercial à proposer</div>` +
+      `<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:12px;">` +
+      `<button type="button" id="drawerOfferBtn_WEB" class="angle-pill-btn ${CURRENT_OFFER==='WEB'?'active-angle':''}" onclick="setSalesOffer('WEB')">🌐 Site Web</button>` +
+      `<button type="button" id="drawerOfferBtn_ADS" class="angle-pill-btn ${CURRENT_OFFER==='ADS'?'active-angle':''}" onclick="setSalesOffer('ADS')">📱 Meta Ads</button>` +
+      `<button type="button" id="drawerOfferBtn_MAPS" class="angle-pill-btn ${CURRENT_OFFER==='MAPS'?'active-angle':''}" onclick="setSalesOffer('MAPS')">📍 Google Maps</button>` +
       `</div>` +
-      `<textarea id="drawerCustomPitch" rows="5" style="width:100%; font-size:0.84rem; line-height:1.45; margin-bottom:10px;" oninput="const waEl=document.getElementById('drawerWaBtn'); if(waEl) waEl.href=buildWhatsAppUrl(decodeURIComponent('${encPhone}'), this.value);">${escapeHtml(currentPitch)}</textarea>` +
-      `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">${contactActionHtml}<button type="button" class="btn btn-copy" onclick="copyPitchText(this, document.getElementById('drawerCustomPitch').value)">📋 Copier le message</button><a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Ouvrir Google Maps</a>${b.facebook_url ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Page Facebook</a>` : ''}</div></div>`;
+      `<div class="copy-strip-label">🧠 2. Angle Psychologique (Chris Voss, Cialdini, Klaff)</div>` +
+      `<div class="angle-pills-grid">` +
+      `<button type="button" id="btnAngle_voss" class="angle-pill-btn ${CURRENT_PITCH_ANGLE==='voss'?'active-angle':''}" onclick="setPitchAngle('voss')" title="Empathie tactique & question orientée Non">🧠 Voss (No-oriented)</button>` +
+      `<button type="button" id="btnAngle_diagnostic" class="angle-pill-btn ${CURRENT_PITCH_ANGLE==='diagnostic'?'active-angle':''}" onclick="setPitchAngle('diagnostic')" title="Diagnostic technique & choc chiffré">🔬 Diagnostic Choc</button>` +
+      `<button type="button" id="btnAngle_reciprocity" class="angle-pill-btn ${CURRENT_PITCH_ANGLE==='reciprocity'?'active-angle':''}" onclick="setPitchAngle('reciprocity')" title="Maquette ou audit vidéo offert">🎁 Réciprocité</button>` +
+      `<button type="button" id="btnAngle_social_proof" class="angle-pill-btn ${CURRENT_PITCH_ANGLE==='social_proof'?'active-angle':''}" onclick="setPitchAngle('social_proof')" title="Pression concurrentielle locale & FCFA">👥 Preuve Sociale</button>` +
+      `</div>` +
+      `<div class="copy-strip-label">📅 3. Étape de la Séquence Commerciale</div>` +
+      `<div class="stage-tabs-row">` +
+      `<button type="button" id="btnStage_j0" class="stage-tab-btn ${CURRENT_PITCH_STAGE==='j0'?'active-stage':''}" onclick="setPitchStage('j0')">⚡ J0 Premier Contact</button>` +
+      `<button type="button" id="btnStage_j2" class="stage-tab-btn ${CURRENT_PITCH_STAGE==='j2'?'active-stage':''}" onclick="setPitchStage('j2')">⏳ J+2 Rappel Doux</button>` +
+      `<button type="button" id="btnStage_j5" class="stage-tab-btn ${CURRENT_PITCH_STAGE==='j5'?'active-stage':''}" onclick="setPitchStage('j5')">📈 J+5 Impact FCFA</button>` +
+      `<button type="button" id="btnStage_j8" class="stage-tab-btn ${CURRENT_PITCH_STAGE==='j8'?'active-stage':''}" onclick="setPitchStage('j8')">🚪 J+8 Clôture Polie</button>` +
+      `</div>` +
+      `<textarea id="drawerCustomPitch" rows="6" style="width:100%; font-size:0.84rem; line-height:1.45; margin-bottom:10px; border-radius:8px;" oninput="const waEl=document.getElementById('drawerWaBtn'); if(waEl) waEl.href=buildWhatsAppUrl(decodeURIComponent('${encPhone}'), this.value);">${escapeHtml(currentPitch)}</textarea>` +
+      `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">${contactActionHtml}<button type="button" class="btn btn-copy" onclick="copyPitchText(this, document.getElementById('drawerCustomPitch').value)">📋 Copier le message</button><a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>${b.facebook_url ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Page Facebook</a>` : ''}</div></div>`;
   }
 
   function updateKPIs() {
@@ -3162,7 +3562,7 @@ INDEX_HTML = """<!DOCTYPE html>
       const pixelBadge = b.has_fb_pixel ? '<span class="status-pill tag-pixel">🎯 Pixel Meta</span>' : '';
       const gaBadge = b.has_google_analytics ? '<span class="status-pill tag-analytics">📊 Google Analytics</span>' : '';
 
-      const currentPitch = generatePitch(b, CURRENT_OFFER);
+      const currentPitch = generatePitch(b, CURRENT_OFFER, CURRENT_PITCH_ANGLE, CURRENT_PITCH_STAGE);
       b.pitch = currentPitch;
 
       const encName = safeAttrEnc(b.name || '');
@@ -3182,7 +3582,7 @@ INDEX_HTML = """<!DOCTYPE html>
         ? `<button class="btn btn-copy" onclick="copyPitchText(this, decodeURIComponent('${safeAttrEnc(currentPitch)}'))">📋 Copier Pitch</button>`
         : '';
       const pitchBoxHtml = CURRENT_VIEW === 'crm'
-        ? `<div class="pitch-box"><strong>Pitch (${escapeHtml(CURRENT_OFFER)}) :</strong> ${escapeHtml(currentPitch)}</div>`
+        ? `<div class="pitch-box"><strong>Pitch (${escapeHtml(CURRENT_OFFER)} • ${escapeHtml(CURRENT_PITCH_ANGLE.toUpperCase())} • ${escapeHtml(CURRENT_PITCH_STAGE.toUpperCase())}) :</strong> ${escapeHtml(currentPitch)}</div>`
         : '';
       const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.name + ' ' + (b.city && b.city !== 'Audit Direct' ? b.city : 'Burkina Faso'))}`;
       const mapsBtn = `<a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>`;
@@ -3226,6 +3626,16 @@ INDEX_HTML = """<!DOCTYPE html>
   document.getElementById('statusFilter').addEventListener('change', render);
   document.getElementById('sectorFilter').addEventListener('change', render);
   document.getElementById('phoneFilter').addEventListener('change', render);
+
+  ['voss', 'diagnostic', 'reciprocity', 'social_proof'].forEach(a => {
+    const el = document.getElementById('topAngle_' + a);
+    if (el) el.classList.toggle('active-angle', a === CURRENT_PITCH_ANGLE);
+  });
+  ['j0', 'j2', 'j5', 'j8'].forEach(s => {
+    const el = document.getElementById('topStage_' + s);
+    if (el) el.classList.toggle('active-stage', s === CURRENT_PITCH_STAGE);
+  });
+
   loadInitialLeads();
   </script>
 </body>

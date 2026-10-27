@@ -27,6 +27,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pitch_engine import DynamicPitchEngine
+
 
 # ---------------------------------------------------------------------------
 # 1. CONFIGURATION, CITIES & EXPANDED BURKINA FASO B2B SECTORS
@@ -842,12 +844,7 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
         lead.issues.append("Utilise uniquement une page Facebook/Réseaux Sociaux (aucun site web propre)")
         lead.issues.append("Invisible sur les recherches Google classiques hors Facebook")
         lead.lead_score = 86 if is_likely_mobile_bf(lead.phone_clean) else 76
-        lead.pitch_angle = (
-            f"Bonjour {lead.name}, j'ai vu votre page Facebook ({fb}), mais vous n'avez pas encore "
-            f"de site web professionnel à votre nom. À {lead.city}, beaucoup de clients et entreprises "
-            f"cherchent sur Google avant de commander : je peux transformer votre page Facebook en vrai "
-            f"site rapide avec catalogue/réservation relié directement à votre WhatsApp."
-        )
+        lead.pitch_angle = DynamicPitchEngine.generate(lead, offer="WEB", angle="voss", stage="j0")
         _attach_whatsapp_link(lead)
         return lead
 
@@ -856,12 +853,7 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
         lead.audit_status = "SANS_SITE"
         lead.issues.append("Aucun site web ni page digitale référencée")
         lead.lead_score = 80 if is_likely_mobile_bf(lead.phone_clean) else (68 if lead.phone_clean else 50)
-        lead.pitch_angle = (
-            f"Bonjour {lead.name}, en cherchant vos services ({lead.sector}) à {lead.city}, "
-            f"j'ai remarqué que vous n'avez pas encore de site web/vitrine digitale reliée à WhatsApp. "
-            f"Vos futurs clients vous cherchent sur Google : je peux vous créer une vitrine professionnelle "
-            f"avec bouton WhatsApp direct en 72h."
-        )
+        lead.pitch_angle = DynamicPitchEngine.generate(lead, offer="WEB", angle="voss", stage="j0")
         _attach_whatsapp_link(lead)
         return lead
 
@@ -965,19 +957,10 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
             if len(technical_flaws) >= 2 or not lead.has_https:
                 lead.audit_status = "SITE_FAIBLE"
                 lead.lead_score = 74 + min(18, len(technical_flaws) * 5)
-                flaws_str = ", ".join(technical_flaws[:2]).lower()
-                lead.pitch_angle = (
-                    f"Bonjour {lead.name}, j'ai visité votre site ({lead.website}) depuis mon téléphone "
-                    f"et j'ai relevé un souci technique qui freine vos clients : {flaws_str}. "
-                    f"Je peux corriger cela rapidement et ajouter un bouton WhatsApp direct."
-                )
             else:
                 lead.audit_status = "SITE_OK"
                 lead.lead_score = 35 if (lead.has_fb_pixel or lead.has_google_analytics) else 45
-                lead.pitch_angle = (
-                    f"Bonjour {lead.name}, votre site web fonctionne bien. Si vous souhaitez automatiser "
-                    f"vos réponses clients sur WhatsApp ou vos réservations, faisons un point rapide."
-                )
+            lead.pitch_angle = DynamicPitchEngine.generate(lead, offer="WEB", angle="voss", stage="j0")
 
     except urllib.error.HTTPError as http_err:
         lead.response_ms = int((time.perf_counter() - t0) * 1000)
@@ -985,22 +968,14 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
         lead.audit_status = "SITE_MORT"
         lead.issues.append(f"Erreur serveur HTTP {http_err.code} (site inaccessible)")
         lead.lead_score = 94
-        lead.pitch_angle = (
-            f"Bonjour {lead.name}, je voulais consulter votre site web ({lead.website}) mais il affiche "
-            f"une erreur technique (HTTP {http_err.code}). Vos clients tombent sur une page cassée : "
-            f"je peux vous le remettre en ligne proprement cette semaine."
-        )
+        lead.pitch_angle = DynamicPitchEngine.generate(lead, offer="WEB", angle="voss", stage="j0")
     except Exception as exc:
         lead.response_ms = int((time.perf_counter() - t0) * 1000)
         lead.audit_status = "SITE_MORT"
         reason = "Certificat SSL expiré" if "SSL" in str(exc) else "Domaine expiré ou serveur hors-ligne"
         lead.issues.append(f"Site hors-ligne ({reason})")
         lead.lead_score = 96
-        lead.pitch_angle = (
-            f"Bonjour {lead.name}, saviez-vous que votre site web ({lead.website}) est actuellement "
-            f"inaccessible ({reason}) ? Vous avez déjà investi dedans mais vos clients ne peuvent plus "
-            f"vous voir. Je peux le réparer et le moderniser rapidement."
-        )
+        lead.pitch_angle = DynamicPitchEngine.generate(lead, offer="WEB", angle="voss", stage="j0")
 
     _attach_whatsapp_link(lead)
     return lead
