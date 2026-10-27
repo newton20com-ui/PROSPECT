@@ -258,28 +258,28 @@ INDEX_HTML = """<!DOCTYPE html>
   <title>ProspectBF — Plateforme SaaS B2B & CRM Burkina Faso</title>
   <style>
     :root {
-      --bg: #070b12;
-      --bg-mesh: radial-gradient(circle at 12% 0%, rgba(59, 130, 246, 0.12), transparent 38%),
-                 radial-gradient(circle at 88% 8%, rgba(16, 185, 129, 0.09), transparent 36%);
-      --surface-0: #0c121e;
-      --card: #111927;
-      --card-2: #172235;
-      --card-hover: #1b283e;
-      --border: #243249;
-      --border-light: #334766;
-      --text: #f8fafc;
-      --text-secondary: #cbd5e1;
-      --muted: #94a3b8;
+      --bg: #f8fafc;
+      --bg-mesh: radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.05), transparent 45%),
+                 radial-gradient(circle at 90% 12%, rgba(16, 185, 129, 0.04), transparent 45%);
+      --surface-0: #ffffff;
+      --card: #ffffff;
+      --card-2: #f1f5f9;
+      --card-hover: #ffffff;
+      --border: #e2e8f0;
+      --border-light: #cbd5e1;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --muted: #64748b;
       --red: #ef4444;
       --amber: #f59e0b;
       --green: #10b981;
-      --blue: #3b82f6;
-      --indigo: #6366f1;
-      --purple: #a855f7;
-      --teal: #14b8a6;
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
-      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
-      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.58);
+      --blue: #2563eb;
+      --indigo: #4f46e5;
+      --purple: #7c3aed;
+      --teal: #0d9488;
+      --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+      --shadow-lg: 0 12px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
@@ -310,12 +310,12 @@ INDEX_HTML = """<!DOCTYPE html>
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(12, 18, 30, 0.88);
+      background: rgba(255, 255, 255, 0.94);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
       padding: 10px 14px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 1px 8px rgba(15, 23, 42, 0.05);
     }
 
     @media (min-width: 768px) {
@@ -343,14 +343,14 @@ INDEX_HTML = """<!DOCTYPE html>
       width: 36px;
       height: 36px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+      background: linear-gradient(135deg, #2563eb 0%, #10b981 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.15rem;
       font-weight: 900;
       color: #fff;
-      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
       flex-shrink: 0;
     }
 
@@ -369,7 +369,7 @@ INDEX_HTML = """<!DOCTYPE html>
       font-size: 1.18rem;
       font-weight: 800;
       letter-spacing: -0.025em;
-      color: #fff;
+      color: #0f172a;
       line-height: 1.1;
     }
 
@@ -386,7 +386,7 @@ INDEX_HTML = """<!DOCTYPE html>
       font-weight: 800;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
 
     .brand-sub {
@@ -400,7 +400,7 @@ INDEX_HTML = """<!DOCTYPE html>
       display: flex;
       align-items: center;
       gap: 6px;
-      background: #080d16;
+      background: #f1f5f9;
       padding: 4px;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -427,20 +427,20 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .nav-pill:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      background: #e2e8f0;
     }
 
     .nav-pill.active {
-      background: var(--card-2);
-      color: #fff;
-      border-color: var(--blue);
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.22);
+      background: #ffffff;
+      color: #2563eb;
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
     }
 
     .nav-pill-count {
-      background: rgba(59, 130, 246, 0.22);
-      color: #93c5fd;
+      background: #eff6ff;
+      color: #2563eb;
       padding: 1px 6px;
       border-radius: 999px;
       font-size: 0.68rem;
@@ -481,13 +481,13 @@ INDEX_HTML = """<!DOCTYPE html>
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--text-secondary);
+      color: var(--text);
     }
 
     .section-step-badge {
-      background: rgba(59, 130, 246, 0.18);
-      border: 1px solid rgba(59, 130, 246, 0.45);
-      color: #93c5fd;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #2563eb;
       font-size: 0.7rem;
       font-weight: 800;
       padding: 2px 7px;
@@ -505,7 +505,7 @@ INDEX_HTML = """<!DOCTYPE html>
       grid-template-columns: 1fr 1fr auto;
       gap: 8px;
       margin-bottom: 10px;
-      background: var(--surface-0);
+      background: #ffffff;
       padding: 6px;
       border-radius: var(--radius-md);
       border: 1px solid var(--border);
@@ -535,24 +535,24 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .tab-btn:hover {
       color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
+      background: #f8fafc;
     }
 
     .tab-btn.active {
-      background: linear-gradient(180deg, #1e2b42 0%, #162033 100%);
-      color: #fff;
-      border: 1px solid var(--border-light);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      box-shadow: var(--shadow-sm);
     }
 
     .panel {
       display: none;
-      background: linear-gradient(180deg, var(--card) 0%, var(--surface-0) 100%);
-      border: 1px solid var(--border-light);
+      background: #ffffff;
+      border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 16px;
       margin-bottom: 16px;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
       position: relative;
       overflow: hidden;
     }
@@ -575,7 +575,7 @@ INDEX_HTML = """<!DOCTYPE html>
       font-size: 1rem;
       font-weight: 800;
       margin-bottom: 4px;
-      color: #f8fafc;
+      color: #0f172a;
     }
 
     .panel p {
@@ -618,7 +618,7 @@ INDEX_HTML = """<!DOCTYPE html>
     input, select, textarea {
       width: 100%;
       max-width: 100%;
-      background: #080d16;
+      background: #ffffff;
       color: var(--text);
       border: 1px solid var(--border);
       padding: 10px 12px;
@@ -633,7 +633,7 @@ INDEX_HTML = """<!DOCTYPE html>
     input:focus, select:focus, textarea:focus {
       outline: none;
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
     @media (min-width: 768px) {
@@ -661,7 +661,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .btn:hover:not(:disabled) {
       transform: translateY(-1px);
-      filter: brightness(1.08);
+      filter: brightness(1.05);
     }
 
     .btn:active:not(:disabled) {
@@ -669,23 +669,24 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
       color: #fff;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
     }
     .btn-amber {
       background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: #070b12;
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
     }
     .btn-reset {
-      background: #162032;
-      color: #e2e8f0;
-      border: 1px solid var(--border-light);
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid var(--border);
     }
     .btn-reset:hover {
-      background: #1e2c44;
-      border-color: #475569;
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
     }
     .btn:disabled { opacity: 0.55; cursor: wait; }
 
@@ -710,7 +711,7 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .kpi {
-      background: linear-gradient(180deg, var(--card) 0%, var(--surface-0) 100%);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 12px 14px;
@@ -729,14 +730,14 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .kpi:hover {
       transform: translateY(-2px);
-      border-color: var(--border-light);
-      background: var(--card-2);
+      border-color: #cbd5e1;
+      box-shadow: var(--shadow-md);
     }
 
     .kpi.active-kpi {
       border-color: var(--blue);
-      background: linear-gradient(180deg, rgba(59, 130, 246, 0.16) 0%, var(--card-2) 100%);
-      box-shadow: 0 0 0 1px var(--blue), 0 6px 20px rgba(59, 130, 246, 0.22);
+      background: #eff6ff;
+      box-shadow: 0 0 0 1px var(--blue), var(--shadow-sm);
     }
 
     .kpi-top-row {
@@ -751,6 +752,7 @@ INDEX_HTML = """<!DOCTYPE html>
       font-weight: 900;
       line-height: 1.1;
       letter-spacing: -0.02em;
+      color: #0f172a;
     }
 
     .kpi-tag {
@@ -758,12 +760,12 @@ INDEX_HTML = """<!DOCTYPE html>
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.06);
+      background: #f1f5f9;
       color: var(--muted);
     }
 
     .kpi-label {
-      color: var(--text-secondary);
+      color: #475569;
       font-size: 0.78rem;
       font-weight: 600;
       margin-top: 6px;
@@ -774,7 +776,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     /* Responsive Filter Panel */
     .filters-box {
-      background: var(--card);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 14px;
@@ -810,10 +812,10 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .filter-summary {
       font-size: 0.82rem;
-      color: var(--text-secondary);
+      color: #475569;
       margin-bottom: 14px;
       padding: 10px 14px;
-      background: var(--surface-0);
+      background: #f8fafc;
       border: 1px solid var(--border);
       border-radius: 10px;
       display: flex;
@@ -831,14 +833,14 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .lead-card {
-      background: linear-gradient(180deg, var(--card) 0%, #0d1422 100%);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-left: 4px solid var(--blue);
       border-radius: var(--radius-md);
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       width: 100%;
       overflow: hidden;
       box-shadow: var(--shadow-sm);
@@ -846,8 +848,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .lead-card:hover {
-      border-color: var(--border-light);
+      border-color: #cbd5e1;
       box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
     }
 
     .lead-card.accent-SITE_MORT { border-left-color: var(--red); }
@@ -875,8 +878,8 @@ INDEX_HTML = """<!DOCTYPE html>
     .score-badge {
       flex: 0 0 54px;
       height: 54px;
-      background: #080d16;
-      border: 2px solid var(--border-light);
+      background: #f8fafc;
+      border: 2px solid var(--border);
       border-radius: 12px;
       display: flex;
       flex-direction: column;
@@ -884,7 +887,6 @@ INDEX_HTML = """<!DOCTYPE html>
       justify-content: center;
       cursor: pointer;
       transition: transform 0.15s ease, border-color 0.15s ease;
-      box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
     }
 
     .score-badge:hover {
@@ -924,7 +926,7 @@ INDEX_HTML = """<!DOCTYPE html>
     .biz-name {
       font-size: 1.08rem;
       font-weight: 800;
-      color: #fff;
+      color: #0f172a;
       word-break: break-word;
       cursor: pointer;
       display: inline-flex;
@@ -934,14 +936,14 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .biz-name:hover {
-      color: #60a5fa;
+      color: var(--blue);
       text-decoration: underline;
     }
 
     .btn-open-detail {
-      background: rgba(59, 130, 246, 0.14);
-      border: 1px solid rgba(59, 130, 246, 0.4);
-      color: #93c5fd;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
       font-size: 0.72rem;
       font-weight: 700;
       padding: 4px 10px;
@@ -978,11 +980,11 @@ INDEX_HTML = """<!DOCTYPE html>
       letter-spacing: 0.02em;
     }
 
-    .st-SITE_MORT { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.6); }
-    .st-SITE_FAIBLE { background: rgba(245,158,11,0.18); color: #fcd34d; border: 1px solid rgba(245,158,11,0.6); }
-    .st-FACEBOOK_SEUL { background: rgba(168,85,247,0.18); color: #d8b4fe; border: 1px solid rgba(168,85,247,0.6); }
-    .st-SANS_SITE { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.6); }
-    .st-SITE_OK { background: rgba(16,185,129,0.18); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.6); }
+    .st-SITE_MORT { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .st-SITE_FAIBLE { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .st-FACEBOOK_SEUL { background: #faf5ff; color: #6d28d9; border: 1px solid #e9d5ff; }
+    .st-SANS_SITE { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .st-SITE_OK { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
 
     .phone-badge {
       font-size: 0.7rem;
@@ -990,8 +992,8 @@ INDEX_HTML = """<!DOCTYPE html>
       border-radius: 6px;
       font-weight: 700;
     }
-    .ph-MOBILE_WHATSAPP { background: rgba(16,185,129,0.18); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.35); }
-    .ph-FIXE_ONATEL { background: rgba(148,163,184,0.16); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.3); }
+    .ph-MOBILE_WHATSAPP { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .ph-FIXE_ONATEL { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
     /* Distinct Info Chips Bar inside Lead Card */
     .meta-chips {
@@ -999,12 +1001,12 @@ INDEX_HTML = """<!DOCTYPE html>
       grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
       gap: 8px;
       font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-top: 12px;
-      background: rgba(8, 13, 22, 0.65);
+      color: #334155;
+      margin-top: 10px;
+      background: #f8fafc;
       border: 1px solid var(--border);
-      padding: 10px 12px;
-      border-radius: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
     }
 
     .meta-item {
@@ -1018,7 +1020,7 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .meta-item a {
-      color: #60a5fa;
+      color: #2563eb;
       font-weight: 600;
       text-decoration: none;
       overflow: hidden;
@@ -1033,27 +1035,27 @@ INDEX_HTML = """<!DOCTYPE html>
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-top: 10px;
+      margin-top: 8px;
     }
 
     .issue-tag {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.28);
-      color: #fecaca;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #be123c;
       font-size: 0.73rem;
       font-weight: 600;
-      padding: 4px 9px;
+      padding: 3px 8px;
       border-radius: 6px;
       line-height: 1.3;
     }
 
     .pitch-box {
-      background: #080d16;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--amber);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 3px solid #f59e0b;
       padding: 10px 12px;
       font-size: 0.8rem;
-      color: #e2e8f0;
+      color: #78350f;
       border-radius: 0 8px 8px 0;
       margin-top: 10px;
       overflow-wrap: anywhere;
@@ -1081,36 +1083,40 @@ INDEX_HTML = """<!DOCTYPE html>
     .btn-wa {
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: #fff;
-      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
     }
     .btn-fb {
-      background: linear-gradient(135deg, #1877f2 0%, #1d4ed8 100%);
+      background: #1877f2;
       color: #ffffff;
     }
     .btn-call {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: #2563eb;
       color: #ffffff;
     }
     .btn-maps {
-      background: rgba(20, 184, 166, 0.16);
-      color: #5eead4;
-      border: 1px solid rgba(20, 184, 166, 0.5);
+      background: #f0fdfa;
+      color: #0f766e;
+      border: 1px solid #99f6e4;
     }
     .btn-maps:hover {
-      background: #0d9488;
-      color: #fff;
+      background: #ccfbf1;
+      color: #115e59;
     }
     .btn-copy {
-      background: #162032;
-      color: var(--text);
-      border: 1px solid var(--border-light);
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid var(--border);
+    }
+    .btn-copy:hover {
+      background: #f1f5f9;
+      color: #0f172a;
     }
 
     .empty-box {
       text-align: center;
       padding: 36px 18px;
-      background: var(--card);
-      border: 1px dashed var(--border-light);
+      background: #ffffff;
+      border: 1px dashed #cbd5e1;
       border-radius: var(--radius-md);
       color: var(--muted);
     }
@@ -1120,9 +1126,9 @@ INDEX_HTML = """<!DOCTYPE html>
       margin-bottom: 14px;
       padding: 12px 16px;
       border-radius: 10px;
-      background: rgba(30, 41, 59, 0.9);
-      border: 1px solid var(--blue);
-      color: #93c5fd;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
       font-size: 0.84rem;
       font-weight: 700;
       box-shadow: var(--shadow-sm);
@@ -1130,7 +1136,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     /* Offer Selector Card (R3) */
     .offer-selector-card {
-      background: linear-gradient(180deg, var(--card) 0%, var(--surface-0) 100%);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 14px 16px;
@@ -1157,7 +1163,7 @@ INDEX_HTML = """<!DOCTYPE html>
     .offer-badge-title {
       font-size: 0.76rem;
       font-weight: 800;
-      color: var(--amber);
+      color: #d97706;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       display: inline-flex;
@@ -1183,7 +1189,7 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .offer-card-btn {
-      background: #080d16;
+      background: #ffffff;
       border: 1px solid var(--border);
       color: var(--text);
       padding: 12px 14px;
@@ -1200,15 +1206,15 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .offer-card-btn:hover {
-      border-color: var(--border-light);
-      background: var(--card-2);
+      border-color: #cbd5e1;
+      background: #f8fafc;
       transform: translateY(-1px);
     }
 
     .offer-card-btn.active {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%);
+      background: #eff6ff;
       border-color: var(--blue);
-      box-shadow: 0 0 0 1px var(--blue), 0 6px 16px rgba(59, 130, 246, 0.2);
+      box-shadow: 0 0 0 1px var(--blue), var(--shadow-sm);
     }
 
     .offer-icon {
@@ -1216,7 +1222,7 @@ INDEX_HTML = """<!DOCTYPE html>
       width: 38px;
       height: 38px;
       border-radius: 9px;
-      background: rgba(255, 255, 255, 0.05);
+      background: #f1f5f9;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1233,7 +1239,7 @@ INDEX_HTML = """<!DOCTYPE html>
     .offer-name {
       font-size: 0.86rem;
       font-weight: 800;
-      color: #fff;
+      color: #0f172a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1253,7 +1259,7 @@ INDEX_HTML = """<!DOCTYPE html>
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 6px;
-      background: #080d16;
+      background: #f8fafc;
       padding: 6px;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -1295,55 +1301,55 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .crm-pill:hover {
-      background: rgba(255, 255, 255, 0.06);
-      color: #fff;
+      background: #e2e8f0;
+      color: #0f172a;
     }
 
     .crm-pill.crm-a-contacter.active {
-      background: rgba(59, 130, 246, 0.22);
+      background: #eff6ff;
       border-color: var(--blue);
-      color: #93c5fd;
-      box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+      color: #1d4ed8;
+      box-shadow: 0 0 6px rgba(37, 99, 235, 0.2);
     }
 
     .crm-pill.crm-contacte.active {
-      background: rgba(245, 158, 11, 0.22);
+      background: #fffbeb;
       border-color: var(--amber);
-      color: #fde68a;
-      box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+      color: #b45309;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
     }
 
     .crm-pill.crm-client.active {
-      background: rgba(168, 85, 247, 0.24);
+      background: #faf5ff;
       border-color: var(--purple);
-      color: #e9d5ff;
-      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+      color: #7c3aed;
+      box-shadow: 0 0 6px rgba(124, 58, 237, 0.2);
     }
 
     .crm-pill.crm-livre.active {
-      background: rgba(20, 184, 166, 0.24);
+      background: #f0fdfa;
       border-color: var(--teal);
-      color: #99f6e4;
-      box-shadow: 0 0 10px rgba(20, 184, 166, 0.3);
+      color: #0f766e;
+      box-shadow: 0 0 6px rgba(13, 148, 136, 0.2);
     }
 
     .crm-pill.crm-paye.active {
-      background: rgba(16, 185, 129, 0.28);
+      background: #ecfdf5;
       border-color: var(--green);
-      color: #6ee7b7;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+      color: #047857;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.2);
     }
 
     .crm-pill.crm-ignore.active {
-      background: rgba(239, 68, 68, 0.2);
+      background: #fef2f2;
       border-color: var(--red);
-      color: #fca5a5;
+      color: #b91c1c;
     }
 
     .lead-card.crm-state-IGNORE,
     .lead-card.crm-state-ECHEC {
       opacity: 0.6;
-      border-color: #334155;
+      border-color: #cbd5e1;
     }
 
     /* Single Primary Button on Untriaged Scan Cards ("Mettre dans À contacter") */
@@ -1356,14 +1362,14 @@ INDEX_HTML = """<!DOCTYPE html>
       margin-top: 10px;
       padding: 10px 12px;
       border-radius: 10px;
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px dashed rgba(59, 130, 246, 0.45);
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
     }
 
     .btn-add-pipeline {
       background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
       color: #ffffff;
-      border: 1px solid #60a5fa;
+      border: 1px solid #2563eb;
       padding: 10px 16px;
       border-radius: 9px;
       font-size: 0.85rem;
@@ -1374,15 +1380,15 @@ INDEX_HTML = """<!DOCTYPE html>
       justify-content: center;
       gap: 8px;
       min-height: 44px;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
       transition: all 0.16s ease;
       flex: 1 1 220px;
     }
 
     .btn-add-pipeline:hover {
       transform: translateY(-1px);
-      filter: brightness(1.1);
-      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.55);
+      filter: brightness(1.08);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
     }
 
     /* Visual Memory Banner on Scan Cards when lead is ALREADY in the user's Pipeline */
@@ -1397,47 +1403,47 @@ INDEX_HTML = """<!DOCTYPE html>
       font-size: 0.8rem;
       font-weight: 800;
       margin-top: 8px;
-      border: 1px solid var(--border-light);
+      border: 1px solid var(--border);
     }
 
     .mem-A_CONTACTER {
-      background: rgba(59, 130, 246, 0.16);
-      border-color: #3b82f6;
-      color: #bfdbfe;
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1e40af;
     }
     .mem-CONTACTE {
-      background: rgba(245, 158, 11, 0.16);
-      border-color: #f59e0b;
-      color: #fde68a;
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #92400e;
     }
     .mem-RDV, .mem-CLIENT {
-      background: rgba(168, 85, 247, 0.18);
-      border-color: #a855f7;
-      color: #e9d5ff;
+      background: #faf5ff;
+      border-color: #e9d5ff;
+      color: #6b21a8;
     }
     .mem-LIVRE {
-      background: rgba(20, 184, 166, 0.18);
-      border-color: #14b8a6;
-      color: #99f6e4;
+      background: #f0fdfa;
+      border-color: #99f6e4;
+      color: #115e59;
     }
     .mem-PAYE {
-      background: rgba(16, 185, 129, 0.22);
-      border-color: #10b981;
-      color: #6ee7b7;
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
     }
     .mem-ECHEC, .mem-IGNORE {
-      background: rgba(239, 68, 68, 0.14);
-      border-color: rgba(239, 68, 68, 0.55);
-      color: #fca5a5;
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
     }
 
     /* Progressive Pipeline Stage Decision Box inside "Mon Pipeline Commercial" */
     .pipeline-stage-box {
-      margin-top: 12px;
+      margin-top: 10px;
       padding: 12px 14px;
       border-radius: 10px;
-      background: rgba(8, 13, 22, 0.88);
-      border: 1px solid var(--border-light);
+      background: #f8fafc;
+      border: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -1451,7 +1457,7 @@ INDEX_HTML = """<!DOCTYPE html>
       gap: 8px;
       font-size: 0.78rem;
       font-weight: 800;
-      color: var(--text-secondary);
+      color: #334155;
     }
 
     .pipeline-next-btns {
@@ -1478,44 +1484,44 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .btn-stage-action:hover {
       transform: translateY(-1px);
-      filter: brightness(1.08);
+      filter: brightness(1.05);
     }
 
     .btn-stage-contacte {
-      background: rgba(245, 158, 11, 0.2);
-      border-color: var(--amber);
-      color: #fde68a;
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #b45309;
     }
     .btn-stage-rdv {
-      background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
-      border-color: #c084fc;
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+      border-color: #7c3aed;
       color: #fff;
     }
     .btn-stage-rdv-check {
-      background: rgba(168, 85, 247, 0.16);
-      border: 2px solid #a855f7;
-      color: #e9d5ff;
+      background: #faf5ff;
+      border: 2px solid #c084fc;
+      color: #7c3aed;
     }
     .btn-stage-rdv-check.done {
-      background: rgba(16, 185, 129, 0.24);
+      background: #ecfdf5;
       border-color: #10b981;
-      color: #6ee7b7;
+      color: #047857;
     }
     .btn-stage-livre {
       background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
-      border-color: #5eead4;
+      border-color: #0d9488;
       color: #fff;
     }
     .btn-stage-paye {
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      border-color: #6ee7b7;
+      border-color: #10b981;
       color: #fff;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
     }
     .btn-stage-echec {
-      background: rgba(239, 68, 68, 0.15);
-      border-color: rgba(239, 68, 68, 0.5);
-      color: #fca5a5;
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #b91c1c;
     }
 
     /* Inline Deal Amount (FCFA) & Notes Bar on Pipeline Cards */
@@ -1525,7 +1531,7 @@ INDEX_HTML = """<!DOCTYPE html>
       gap: 8px;
       margin-top: 8px;
       padding-top: 8px;
-      border-top: 1px solid rgba(51, 71, 102, 0.45);
+      border-top: 1px solid var(--border);
     }
 
     @media (min-width: 640px) {
@@ -1552,7 +1558,9 @@ INDEX_HTML = """<!DOCTYPE html>
       min-height: 38px;
       padding: 6px 10px;
       font-size: 0.82rem;
-      background: #050911;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: #0f172a;
     }
 
     /* Financial Summary Banner in Mon Pipeline Commercial */
@@ -1570,8 +1578,8 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .fin-card {
-      background: linear-gradient(135deg, #111927 0%, #0b111d 100%);
-      border: 1px solid var(--border-light);
+      background: #ffffff;
+      border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 14px 16px;
       display: flex;
@@ -1596,12 +1604,12 @@ INDEX_HTML = """<!DOCTYPE html>
       font-size: 1.4rem;
       font-weight: 900;
       margin-top: 4px;
-      color: #fff;
+      color: #0f172a;
     }
 
     .fin-sub {
       font-size: 0.74rem;
-      color: var(--text-secondary);
+      color: #64748b;
       margin-top: 4px;
     }
 
@@ -1622,9 +1630,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .crm-stage-card {
-      background: linear-gradient(180deg, #101827 0%, #0b101b 100%);
+      background: #ffffff;
       border: 1px solid var(--border);
-      border-top: 3px solid #64748b;
+      border-top: 3px solid #cbd5e1;
       border-radius: var(--radius-md);
       padding: 10px 12px;
       cursor: pointer;
@@ -1634,18 +1642,19 @@ INDEX_HTML = """<!DOCTYPE html>
       flex-direction: column;
       justify-content: space-between;
       min-height: 68px;
+      box-shadow: var(--shadow-sm);
     }
 
     .crm-stage-card:hover {
       transform: translateY(-2px);
-      border-color: var(--border-light);
-      background: var(--card-2);
+      border-color: #94a3b8;
+      box-shadow: var(--shadow-md);
     }
 
     .crm-stage-card.active-crm-stage {
       border-color: var(--blue);
-      background: linear-gradient(180deg, rgba(59, 130, 246, 0.16) 0%, var(--card-2) 100%);
-      box-shadow: 0 0 0 1px var(--blue), 0 6px 18px rgba(59, 130, 246, 0.2);
+      background: #eff6ff;
+      box-shadow: 0 0 0 1px var(--blue), var(--shadow-sm);
     }
 
     /* One-Tap Hide Known Leads Toggle Bar */
@@ -1666,18 +1675,18 @@ INDEX_HTML = """<!DOCTYPE html>
       gap: 8px;
       font-size: 0.8rem;
       font-weight: 700;
-      color: #cbd5e1;
+      color: #334155;
       cursor: pointer;
       user-select: none;
       padding: 6px 12px;
       border-radius: 8px;
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
       transition: all 0.15s ease;
     }
 
     .toggle-known-label:hover {
-      background: rgba(59, 130, 246, 0.18);
+      background: #dbeafe;
     }
 
     .toggle-known-label input[type="checkbox"] {
@@ -1695,28 +1704,28 @@ INDEX_HTML = """<!DOCTYPE html>
       align-items: center;
       flex-wrap: wrap;
       gap: 10px;
-      background: rgba(17, 25, 39, 0.85);
-      border: 1px solid var(--border);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
       border-left: 4px solid var(--blue);
       border-radius: 10px;
       padding: 10px 14px;
       margin-bottom: 16px;
       font-size: 0.8rem;
-      color: var(--text-secondary);
+      color: #1e40af;
     }
 
     /* Tracking Badges (R4) */
-    .tag-pixel { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
-    .tag-analytics { background: rgba(245, 158, 11, 0.2); color: #fde68a; border: 1px solid #f59e0b; }
+    .tag-pixel { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .tag-analytics { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 
     /* Interactive Slide-Over Lead Detail Modal ("Rentrer dans la fiche d'une entreprise") */
     .modal-backdrop {
       position: fixed;
       inset: 0;
       z-index: 250;
-      background: rgba(3, 7, 15, 0.78);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       display: none;
       justify-content: flex-end;
       align-items: stretch;
@@ -1729,8 +1738,8 @@ INDEX_HTML = """<!DOCTYPE html>
     .detail-drawer {
       width: 100%;
       max-width: 620px;
-      background: var(--surface-0);
-      border-left: 1px solid var(--border-light);
+      background: #ffffff;
+      border-left: 1px solid var(--border);
       box-shadow: var(--shadow-lg);
       display: flex;
       flex-direction: column;
@@ -1756,9 +1765,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .drawer-close-btn {
-      background: #1e293b;
-      border: 1px solid var(--border-light);
-      color: #fff;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      color: #334155;
       width: 42px;
       height: 42px;
       border-radius: 9px;
@@ -1767,9 +1776,13 @@ INDEX_HTML = """<!DOCTYPE html>
       cursor: pointer;
       flex-shrink: 0;
     }
+    .drawer-close-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
 
     .drawer-section {
-      background: var(--card);
+      background: #f8fafc;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 14px;
@@ -1781,7 +1794,7 @@ INDEX_HTML = """<!DOCTYPE html>
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--muted);
+      color: #475569;
       margin-bottom: 10px;
       display: flex;
       align-items: center;
@@ -1795,7 +1808,7 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .diag-item {
-      background: #080d16;
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 9px 10px;
@@ -1810,7 +1823,7 @@ INDEX_HTML = """<!DOCTYPE html>
     .diag-val {
       font-size: 0.84rem;
       font-weight: 700;
-      color: #fff;
+      color: #0f172a;
       margin-top: 2px;
       display: block;
       overflow: hidden;
@@ -1826,9 +1839,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .angle-pill-btn {
-      background: var(--surface-0);
+      background: #ffffff;
       border: 1px solid var(--border);
-      color: var(--muted);
+      color: #475569;
       border-radius: 6px;
       padding: 6px 4px;
       font-size: 0.72rem;
@@ -1840,16 +1853,16 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .angle-pill-btn:hover {
-      background: #1e293b;
-      color: #fff;
-      border-color: var(--blue);
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
     }
 
     .angle-pill-btn.active-angle {
-      background: rgba(59, 130, 246, 0.2);
+      background: #eff6ff;
       border-color: var(--blue);
-      color: #93c5fd;
-      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+      color: #1d4ed8;
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
     }
 
     .stage-tabs-row {
@@ -1860,9 +1873,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .stage-tab-btn {
-      background: var(--surface-0);
+      background: #ffffff;
       border: 1px solid var(--border);
-      color: var(--muted);
+      color: #475569;
       border-radius: 6px;
       padding: 6px 4px;
       font-size: 0.70rem;
@@ -1874,14 +1887,15 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .stage-tab-btn:hover {
-      background: #1e293b;
-      color: #fff;
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
     }
 
     .stage-tab-btn.active-stage {
-      background: rgba(16, 185, 129, 0.2);
+      background: #ecfdf5;
       border-color: var(--green);
-      color: #6ee7b7;
+      color: #047857;
     }
 
     .copy-strip-label {
@@ -1895,8 +1909,8 @@ INDEX_HTML = """<!DOCTYPE html>
 
     .pitch-stats-badge {
       font-size: 0.68rem;
-      color: #93c5fd;
-      background: rgba(59, 130, 246, 0.12);
+      color: #1d4ed8;
+      background: #eff6ff;
       padding: 2px 8px;
       border-radius: 4px;
       font-weight: 600;
@@ -1924,7 +1938,7 @@ INDEX_HTML = """<!DOCTYPE html>
           🔍 Radar de Scan <span class="nav-pill-count" id="navCountAll">0</span>
         </button>
         <button type="button" id="navView_crm" class="nav-pill" onclick="switchAppView('crm')">
-          📋 Mon Pipeline Commercial <span class="nav-pill-count" id="navCountCrm" style="background:rgba(16,185,129,0.25); color:#6ee7b7;">0</span>
+          📋 Mon Pipeline Commercial <span class="nav-pill-count" id="navCountCrm" style="background:#ecfdf5; color:#047857;">0</span>
         </button>
         <button type="button" id="navView_offers" class="nav-pill" onclick="switchAppView('offers')">
           🎯 Offres & Pitchs
@@ -1939,7 +1953,7 @@ INDEX_HTML = """<!DOCTYPE html>
   <div class="container">
     <div id="workspaceContextBar" class="workspace-context-bar">
       <span id="workspaceContextTitle"><strong>🔍 Espace Actif : Radar de Scan & Triage</strong> — Scannez une ville, repérez les opportunités et cliquez sur <strong>« ➕ Mettre dans À contacter »</strong> pour les envoyer dans votre Pipeline Commercial</span>
-      <button type="button" id="btnQuickGoPipeline" class="btn btn-reset" style="width:auto; min-height:34px; padding:5px 12px; font-size:0.76rem; border-color:var(--blue); color:#93c5fd;" onclick="switchAppView('crm')">📂 Ouvrir Mon Pipeline Commercial →</button>
+      <button type="button" id="btnQuickGoPipeline" class="btn btn-reset" style="width:auto; min-height:34px; padding:5px 12px; font-size:0.76rem; border-color:#bfdbfe; color:#2563eb; background:#ffffff;" onclick="switchAppView('crm')">📂 Ouvrir Mon Pipeline Commercial →</button>
     </div>
 
     <div id="statusBanner"></div>
@@ -2107,12 +2121,12 @@ INDEX_HTML = """<!DOCTYPE html>
         </div>
         <div class="fin-card fin-pending">
           <span class="fin-title">⏳ En attente (Livré + RDV)</span>
-          <div class="fin-amount" id="finPendingTotal" style="color: #5eead4;">0 FCFA</div>
+          <div class="fin-amount" id="finPendingTotal" style="color: #0d9488;">0 FCFA</div>
           <span class="fin-sub" id="finPendingCount">0 projet en cours / livré</span>
         </div>
         <div class="fin-card fin-active">
           <span class="fin-title">📥 Prospects dans Mon Pipeline</span>
-          <div class="fin-amount" id="finActiveCount" style="color: #93c5fd;">0</div>
+          <div class="fin-amount" id="finActiveCount" style="color: #2563eb;">0</div>
           <span class="fin-sub" id="finTodoCount">Dont 0 dans « À contacter »</span>
         </div>
       </div>
@@ -2167,7 +2181,7 @@ INDEX_HTML = """<!DOCTYPE html>
         </div>
         <div id="crmStage_A_CONTACTER" class="crm-stage-card" style="border-top-color: #3b82f6;" onclick="quickFilterCrm('A_CONTACTER')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_A_CONTACTER" style="font-size:1.25rem; color:#93c5fd;">0</div>
+            <div class="kpi-val" id="crmCount_A_CONTACTER" style="font-size:1.25rem; color:var(--blue);">0</div>
             <span class="kpi-tag">Étape 1</span>
           </div>
           <div class="kpi-label">📥 À contacter</div>
@@ -2181,14 +2195,14 @@ INDEX_HTML = """<!DOCTYPE html>
         </div>
         <div id="crmStage_CLIENT" class="crm-stage-card" style="border-top-color: var(--purple);" onclick="quickFilterCrm('CLIENT')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_CLIENT" style="font-size:1.25rem; color:#d8b4fe;">0</div>
+            <div class="kpi-val" id="crmCount_CLIENT" style="font-size:1.25rem; color:var(--purple);">0</div>
             <span class="kpi-tag">Étape 3</span>
           </div>
           <div class="kpi-label">📅 Rendez-vous</div>
         </div>
         <div id="crmStage_LIVRE" class="crm-stage-card" style="border-top-color: var(--teal);" onclick="quickFilterCrm('LIVRE')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_LIVRE" style="font-size:1.25rem; color:#5eead4;">0</div>
+            <div class="kpi-val" id="crmCount_LIVRE" style="font-size:1.25rem; color:var(--teal);">0</div>
             <span class="kpi-tag">Étape 4</span>
           </div>
           <div class="kpi-label">🛠️ Livré</div>
@@ -2235,7 +2249,7 @@ INDEX_HTML = """<!DOCTYPE html>
         <span id="filterCountText" style="font-weight:700;">Chargement...</span>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-reset" style="width:auto; min-height:36px; padding:6px 14px; font-size:0.78rem;" onclick="exportLeadsCsv()">📥 Exporter CSV</button>
-          <button class="btn btn-reset" style="width:auto; min-height:36px; padding:6px 14px; font-size:0.78rem; color:#fca5a5; border-color:rgba(239,68,68,0.4);" onclick="clearAllLeads()">🗑️ Vider la liste</button>
+          <button class="btn btn-reset" style="width:auto; min-height:36px; padding:6px 14px; font-size:0.78rem; color:#b91c1c; border-color:#fecaca; background:#fff1f2;" onclick="clearAllLeads()">🗑️ Vider la liste</button>
         </div>
       </div>
 
@@ -2249,7 +2263,7 @@ INDEX_HTML = """<!DOCTYPE html>
       <div class="drawer-header">
         <div>
           <span id="drawerSectorBadge" style="font-size:0.72rem; color:var(--blue); font-weight:800; text-transform:uppercase;">SECTEUR</span>
-          <h2 id="drawerBizName" style="font-size:1.25rem; font-weight:900; color:#fff; margin-top:2px;">Entreprise</h2>
+          <h2 id="drawerBizName" style="font-size:1.25rem; font-weight:900; color:var(--text); margin-top:2px;">Entreprise</h2>
           <p id="drawerLocation" style="font-size:0.8rem; color:var(--muted); margin-top:2px;">📍 Localisation</p>
         </div>
         <button type="button" class="drawer-close-btn" onclick="closeLeadDetail()" title="Fermer">✕</button>
@@ -2925,8 +2939,9 @@ INDEX_HTML = """<!DOCTYPE html>
   function showBanner(msg, isError = false) {
     const b = document.getElementById('statusBanner');
     b.style.display = 'block';
-    b.style.borderColor = isError ? '#ef4444' : '#3b82f6';
-    b.style.color = isError ? '#fca5a5' : '#93c5fd';
+    b.style.borderColor = isError ? '#fecaca' : '#bfdbfe';
+    b.style.background = isError ? '#fef2f2' : '#eff6ff';
+    b.style.color = isError ? '#b91c1c' : '#1d4ed8';
     b.textContent = msg;
   }
 
@@ -3262,7 +3277,7 @@ INDEX_HTML = """<!DOCTYPE html>
     document.getElementById('drawerBizName').textContent = b.name || 'Entreprise';
     document.getElementById('drawerLocation').textContent = `📍 ${b.city || 'Burkina Faso'} • ${b.neighborhood || 'Quartier non précisé'}`;
 
-    const scoreColor = b.score >= 85 ? '#ef4444' : (b.score >= 70 ? '#f59e0b' : '#10b981');
+    const scoreColor = b.score >= 85 ? '#dc2626' : (b.score >= 70 ? '#d97706' : '#16a34a');
     const fullUrl = b.website ? (b.website.startsWith('http') ? b.website : 'http://' + b.website) : '';
     const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.name || '') + ' ' + (b.city || 'Burkina Faso'))}`;
     const currentPitch = generatePitch(b, CURRENT_OFFER, CURRENT_PITCH_ANGLE, CURRENT_PITCH_STAGE);
@@ -3293,12 +3308,12 @@ INDEX_HTML = """<!DOCTYPE html>
       `<div class="diag-grid">` +
       `<div class="diag-item"><span class="diag-lbl">Score d'Opportunité</span><span class="diag-val" style="color:${scoreColor}; font-size:1.1rem;">${b.score || 0} / 100</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Temps de Réponse HTTP</span><span class="diag-val">${b.response_ms ? b.response_ms + ' ms' : 'Non mesuré / Sans site'}</span></div>` +
-      `<div class="diag-item"><span class="diag-lbl">Pixel Meta (Facebook Ads)</span><span class="diag-val" style="color:${b.has_fb_pixel ? '#6ee7b7' : '#fca5a5'}">${b.has_fb_pixel ? '✅ Détecté' : '❌ Absent'}</span></div>` +
-      `<div class="diag-item"><span class="diag-lbl">Google Analytics / Tag</span><span class="diag-val" style="color:${b.has_google_analytics ? '#6ee7b7' : '#fca5a5'}">${b.has_google_analytics ? '✅ Détecté' : '❌ Absent'}</span></div>` +
+      `<div class="diag-item"><span class="diag-lbl">Pixel Meta (Facebook Ads)</span><span class="diag-val" style="color:${b.has_fb_pixel ? '#059669' : '#dc2626'}">${b.has_fb_pixel ? '✅ Détecté' : '❌ Absent'}</span></div>` +
+      `<div class="diag-item"><span class="diag-lbl">Google Analytics / Tag</span><span class="diag-val" style="color:${b.has_google_analytics ? '#059669' : '#dc2626'}">${b.has_google_analytics ? '✅ Détecté' : '❌ Absent'}</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Téléphone & Email</span><span class="diag-val">📞 ${escapeHtml(b.phone || 'Non renseigné')}${b.email ? ' • ✉️ ' + escapeHtml(b.email) : ''}</span></div>` +
-      `<div class="diag-item"><span class="diag-lbl">Site Web Officiel</span><span class="diag-val">${fullUrl ? `<a href="${fullUrl}" target="_blank" style="color:#60a5fa;">🌐 ${escapeHtml(shortDomain(b.website))}</a>` : '❌ Aucun site web'}</span></div>` +
+      `<div class="diag-item"><span class="diag-lbl">Site Web Officiel</span><span class="diag-val">${fullUrl ? `<a href="${fullUrl}" target="_blank" style="color:#2563eb;">🌐 ${escapeHtml(shortDomain(b.website))}</a>` : '❌ Aucun site web'}</span></div>` +
       `</div><div class="issues" style="margin-top:12px;">${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${escapeHtml(iss)}</span>`).join('') || '<span style="font-size:0.78rem; color:var(--muted);">Aucun problème critique signalé.</span>'}</div></div>` +
-      `<div class="drawer-section"><div class="drawer-section-title"><span>📋 Étape Pipeline Commercial (6 Étapes)</span><span style="font-size:0.7rem; color:#93c5fd;">${inPipe ? '📌 Dans Mon Pipeline (' + formatRelativeTime(b.updated_at) + ')' : '🔍 Non classé'}</span></div>` +
+      `<div class="drawer-section"><div class="drawer-section-title"><span>📋 Étape Pipeline Commercial (6 Étapes)</span><span style="font-size:0.7rem; color:#2563eb; font-weight:700;">${inPipe ? '📌 Dans Mon Pipeline (' + formatRelativeTime(b.updated_at) + ')' : '🔍 Non classé'}</span></div>` +
       `${!inPipe ? `<button type="button" class="btn-add-pipeline" style="width:100%; margin-bottom:10px;" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter » (Mon Pipeline)</button>` : ''}` +
       `<div class="crm-bar" style="margin-top:0;">` +
       `<button type="button" class="crm-pill crm-a-contacter ${inPipe && stageGroup === 'A_CONTACTER' ? 'active' : ''}" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">📥 1. À contacter</button>` +
@@ -3461,10 +3476,10 @@ INDEX_HTML = """<!DOCTYPE html>
       stageBtns = `<button type="button" class="btn-stage-action btn-stage-paye" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'PAYE', decodeURIComponent('${encCity}'))">💰 Marquer comme « Payé & Encaissé ! »</button>` +
         `<button type="button" class="btn-stage-action btn-stage-echec" style="flex:0 0 auto;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">↩️ Retour RDV</button>`;
     } else if (stageGroup === 'PAYE') {
-      stageHeader = `<span style="color:#6ee7b7;">🎉 Étape 5 : Affaire conclue, livrée & Payée (${escapeHtml(relTime)}) !</span>`;
+      stageHeader = `<span style="color:#047857; font-weight:700;">🎉 Étape 5 : Affaire conclue, livrée & Payée (${escapeHtml(relTime)}) !</span>`;
       stageBtns = `<span class="status-pill st-SITE_OK" style="padding:8px 14px; font-size:0.82rem;">💰 Encaissé : ${formatFcfa(b.deal_amount || 0)}</span>`;
     } else {
-      stageHeader = `<span style="color:#fca5a5;">❌ Étape 6 : Échec / Sans suite (${escapeHtml(relTime)})</span>`;
+      stageHeader = `<span style="color:#b91c1c; font-weight:700;">❌ Étape 6 : Échec / Sans suite (${escapeHtml(relTime)})</span>`;
       stageBtns = `<button type="button" class="btn-stage-action btn-stage-contacte" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔄 Repêcher → Remettre dans « À contacter »</button>`;
     }
 
@@ -3543,7 +3558,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     if (filtered.length === 0) {
       if (CURRENT_VIEW === 'crm' && totalScope === 0) {
-        container.innerHTML = `<div class="empty-box"><p style="font-size:1rem; font-weight:800; color:#fff; margin-bottom:6px;">📭 Ton Pipeline Commercial est vide pour le moment.</p><p style="font-size:0.84rem; margin-bottom:14px;">Va dans le <strong>Radar de Scan</strong> et appuie sur le bouton <strong>« ➕ Mettre dans À contacter »</strong> sur les entreprises qui t'intéressent pour les retrouver ici !</p><button class="btn btn-primary" style="max-width:280px;" onclick="switchAppView('scanner')">🔍 Aller au Radar de Scan</button></div>`;
+        container.innerHTML = `<div class="empty-box"><p style="font-size:1rem; font-weight:800; color:#0f172a; margin-bottom:6px;">📭 Ton Pipeline Commercial est vide pour le moment.</p><p style="font-size:0.84rem; margin-bottom:14px;">Va dans le <strong>Radar de Scan</strong> et appuie sur le bouton <strong>« ➕ Mettre dans À contacter »</strong> sur les entreprises qui t'intéressent pour les retrouver ici !</p><button class="btn btn-primary" style="max-width:280px;" onclick="switchAppView('scanner')">🔍 Aller au Radar de Scan</button></div>`;
       } else {
         container.innerHTML = `<div class="empty-box"><p style="font-size:0.95rem; font-weight:700; margin-bottom:6px;">Aucun résultat pour ce filtre.</p><p style="font-size:0.8rem; margin-bottom:12px;">Réinitialise les filtres ou change d'onglet CRM en haut.</p><button class="btn btn-reset" style="max-width:220px;" onclick="resetFilters()">🔄 Réinitialiser les filtres</button></div>`;
       }
@@ -3602,7 +3617,7 @@ INDEX_HTML = """<!DOCTYPE html>
         } else {
           workflowZoneHtml = `<div class="scan-triage-bar">` +
             `<button type="button" class="btn-add-pipeline" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter »</button>` +
-            `<button type="button" class="btn btn-reset" style="width:auto; min-height:42px; padding:8px 12px; font-size:0.75rem; color:#fca5a5; border-color:rgba(239,68,68,0.35);" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))" title="Ignorer ce résultat">🚫 Ignorer</button>` +
+            `<button type="button" class="btn btn-reset" style="width:auto; min-height:42px; padding:8px 12px; font-size:0.75rem; color:#b91c1c; border-color:#fecaca; background:#fff1f2;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))" title="Ignorer ce résultat">🚫 Ignorer</button>` +
             `</div>`;
         }
       }
