@@ -1430,6 +1430,104 @@ class Tier4RealWorldWorkloadsTests(unittest.TestCase):
         self.assertIn("crmStage_PAYE", html_src)
         self.assertIn("buildRadarMemoryBannerHtml", html_src)
 
+    def test_t4_05_audit_single_preserves_pipeline_and_timestamp_reconciliation(self):
+        """
+        T4.5: Re-auditing a pipeline lead via /api/audit-single preserves its CRM state in the HTTP response,
+        and timestamp-based merge_leads supports repêchage (IGNORE -> A_CONTACTER), unchecking rdv_done, and clearing notes.
+        """
+        server = EphemeralMockServer(server_bf.ProspectHandler).start()
+        try:
+            # 1. Seed a lead in Audit Direct with RDV, rdv_done=True, deal_amount=95000, notes
+            server_bf.save_leads([
+                {
+                    "name": "Clinique Suka Direct",
+                    "city": "Audit Direct",
+                    "crm_status": "CLIENT",
+                    "in_pipeline": True,
+                    "rdv_done": True,
+                    "deal_amount": 95000,
+                    "notes": "Devis envoyé",
+                    "updated_at": "2026-10-27T09:00:00Z",
+                    "score": 80,
+                }
+            ])
+            # Re-audit the same lead via /api/audit-single
+            st, resp, _ = make_request(
+                f"{server.base_url}/api/audit-single",
+                method="POST",
+                data={"name": "Clinique Suka Direct", "sector_key": "sante", "website": "", "phone": "70 11 22 33"},
+            )
+            self.assertEqual(st, 200)
+            lead_out = resp.get("lead", {})
+            self.assertEqual(lead_out.get("crm_status"), "CLIENT")
+            self.assertTrue(lead_out.get("in_pipeline"))
+            self.assertTrue(lead_out.get("rdv_done"))
+            self.assertEqual(lead_out.get("deal_amount"), 95000)
+            self.assertEqual(lead_out.get("notes"), "Devis envoyé")
+
+            # 2. Test timestamp-based merge_leads when user repêches a lead from IGNORE -> A_CONTACTER,
+            #    unchecks rdv_done (True -> False), and clears notes/deal_amount.
+            older_state = [
+                {
+                    "name": "Garage Faso",
+                    "city": "Ouagadougou",
+                    "crm_status": "IGNORE",
+                    "in_pipeline": True,
+                    "rdv_done": True,
+                    "deal_amount": 50000,
+                    "notes": "Ancienne note",
+                    "updated_at": "2026-10-27T08:00:00Z",
+                }
+            ]
+            newer_update = [
+                {
+                    "name": "Garage Faso",
+                    "city": "Ouagadougou",
+                    "crm_status": "A_CONTACTER",
+                    "in_pipeline": True,
+                    "rdv_done": False,
+                    "deal_amount": 0,
+                    "notes": "",
+                    "updated_at": "2026-10-27T10:00:00Z",
+                }
+            ]
+            reconciled = server_bf.merge_leads(older_state, newer_update)
+            self.assertEqual(reconciled[0]["crm_status"], "A_CONTACTER")
+            self.assertTrue(reconciled[0]["in_pipeline"])
+            self.assertFalse(reconciled[0]["rdv_done"])
+            self.assertEqual(reconciled[0]["deal_amount"], 0)
+            self.assertEqual(reconciled[0]["notes"], "")
+
+            # 3. Verify embedded frontend JS syntax & live execution of dedupeAndSortLeads via Node.js
+            node_bin = shutil.which("node")
+            if node_bin:
+                m = re.search(r"<script>(.*?)</script>", server_bf.INDEX_HTML, re.S)
+                self.assertIsNotNone(m)
+                full_script = m.group(1)
+                js_file = Path(self.temp_dir) / "extracted_ui.js"
+                js_file.write_text(full_script, encoding="utf-8")
+                chk = subprocess.run([node_bin, "--check", str(js_file)], capture_output=True, text=True)
+                self.assertEqual(chk.returncode, 0, f"Frontend JS syntax error: {chk.stderr}")
+
+                # Execute dedupeAndSortLeads in a mocked DOM context
+                harness_js = (
+                    "const document = { getElementById: () => ({ addEventListener: () => {}, setAttribute: () => {}, classList: { toggle: () => {}, add: () => {}, remove: () => {} }, style: {}, value: 'ALL', innerHTML: '', textContent: '' }) };\n"
+                    "const localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };\n"
+                    "const window = { addEventListener: () => {}, scrollTo: () => {} };\n"
+                    "const fetch = async () => ({ json: async () => ({ leads: [] }) });\n"
+                    + full_script
+                    + "\nconst out = dedupeAndSortLeads("
+                    + json.dumps(older_state + newer_update)
+                    + ");\n"
+                    + "if (out[0].crm_status !== 'A_CONTACTER' || out[0].rdv_done !== false || out[0].deal_amount !== 0 || out[0].notes !== '') { process.exit(2); }\n"
+                )
+                harness_file = Path(self.temp_dir) / "harness_ui.js"
+                harness_file.write_text(harness_js, encoding="utf-8")
+                run_js = subprocess.run([node_bin, str(harness_file)], capture_output=True, text=True)
+                self.assertEqual(run_js.returncode, 0, f"Frontend dedupeAndSortLeads execution failed: {run_js.stderr}")
+        finally:
+            server.stop()
+
 
 # ============================================================================
 # CUSTOM TEST RUNNER & DETAILED REPORTING

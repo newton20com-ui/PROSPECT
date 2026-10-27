@@ -169,24 +169,37 @@ def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
             existing_rdv_done = bool(existing_lead.get("rdv_done", False))
             existing_amount = _safe_int_amount(existing_lead.get("deal_amount", 0))
             existing_notes = str(existing_lead.get("notes") or "")
-            existing_updated = str(existing_lead.get("updated_at") or "")
+            existing_updated = str(existing_lead.get("updated_at") or "").strip()
+            entry_updated = str(entry.get("updated_at") or "").strip()
 
             combined = dict(existing_lead)
             combined.update(entry)
-            if existing_status and (existing_status != "A_CONTACTER" or not entry.get("crm_status") or entry.get("crm_status") == "A_CONTACTER"):
-                combined["crm_status"] = existing_status
-            else:
-                combined["crm_status"] = entry.get("crm_status") or "A_CONTACTER"
 
-            combined["in_pipeline"] = bool(
-                existing_in_pipe
-                or entry.get("in_pipeline", False)
-                or (combined["crm_status"] in PIPELINE_ACTIVE_STATUSES)
-            )
-            combined["rdv_done"] = bool(existing_rdv_done or entry.get("rdv_done", False))
-            combined["deal_amount"] = _safe_int_amount(entry.get("deal_amount")) if _safe_int_amount(entry.get("deal_amount")) > 0 else existing_amount
-            combined["notes"] = str(entry.get("notes") or "") if str(entry.get("notes") or "").strip() else existing_notes
-            combined["updated_at"] = str(entry.get("updated_at") or "") if str(entry.get("updated_at") or "").strip() else existing_updated
+            if entry_updated and (not existing_updated or entry_updated >= existing_updated):
+                combined["crm_status"] = entry.get("crm_status") or existing_status or "A_CONTACTER"
+                combined["in_pipeline"] = bool(
+                    entry.get("in_pipeline", existing_in_pipe)
+                    or (combined["crm_status"] in PIPELINE_ACTIVE_STATUSES)
+                )
+                combined["rdv_done"] = bool(entry.get("rdv_done", False))
+                combined["deal_amount"] = _safe_int_amount(entry.get("deal_amount", 0))
+                combined["notes"] = str(entry.get("notes") or "")
+                combined["updated_at"] = entry_updated
+            else:
+                if existing_status and (existing_status != "A_CONTACTER" or not entry.get("crm_status") or entry.get("crm_status") == "A_CONTACTER"):
+                    combined["crm_status"] = existing_status
+                else:
+                    combined["crm_status"] = entry.get("crm_status") or "A_CONTACTER"
+
+                combined["in_pipeline"] = bool(
+                    existing_in_pipe
+                    or entry.get("in_pipeline", False)
+                    or (combined["crm_status"] in PIPELINE_ACTIVE_STATUSES)
+                )
+                combined["rdv_done"] = bool(existing_rdv_done or entry.get("rdv_done", False))
+                combined["deal_amount"] = _safe_int_amount(entry.get("deal_amount")) if _safe_int_amount(entry.get("deal_amount")) > 0 else existing_amount
+                combined["notes"] = str(entry.get("notes") or "") if str(entry.get("notes") or "").strip() else existing_notes
+                combined["updated_at"] = existing_updated or entry_updated
             merged_map[key] = combined
         else:
             if not entry.get("crm_status"):
@@ -2339,9 +2352,13 @@ INDEX_HTML = """<!DOCTYPE html>
     }
     match.updated_at = new Date().toISOString();
     saveLocalBackup();
-    updateKPIs();
+    render();
     if (ACTIVE_DETAIL_LEAD === match) renderLeadDetailDrawer();
-    await syncLeadToServer(match, fields);
+    await syncLeadToServer(match, {
+      deal_amount: match.deal_amount,
+      notes: match.notes,
+      updated_at: match.updated_at
+    });
   }
 
   function openLeadInPipeline(name, city) {
@@ -2410,16 +2427,49 @@ INDEX_HTML = """<!DOCTYPE html>
       if (map.has(key)) {
         const prev = map.get(key);
         const combined = Object.assign({}, prev, item);
-        if (prev.crm_status && prev.crm_status !== 'A_CONTACTER' && (!item.crm_status || item.crm_status === 'A_CONTACTER')) {
-          combined.crm_status = prev.crm_status;
+        const prevUp = String(prev.updated_at || '').trim();
+        const itemUp = String(item.updated_at || '').trim();
+
+        if (prevUp && itemUp) {
+          const crmWinner = itemUp >= prevUp ? item : prev;
+          combined.crm_status = crmWinner.crm_status || 'A_CONTACTER';
+          combined.in_pipeline = Boolean(
+            crmWinner.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
+          );
+          combined.rdv_done = Boolean(crmWinner.rdv_done);
+          combined.deal_amount = Math.max(0, parseInt(crmWinner.deal_amount || 0, 10) || 0);
+          combined.notes = String(crmWinner.notes || '');
+          combined.updated_at = crmWinner.updated_at || '';
+        } else if (itemUp && !prevUp) {
+          combined.crm_status = item.crm_status || prev.crm_status || 'A_CONTACTER';
+          combined.in_pipeline = Boolean(
+            item.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
+          );
+          combined.rdv_done = Boolean(item.rdv_done);
+          combined.deal_amount = Math.max(0, parseInt(item.deal_amount || 0, 10) || 0);
+          combined.notes = String(item.notes || '');
+          combined.updated_at = itemUp;
+        } else if (prevUp && !itemUp) {
+          combined.crm_status = prev.crm_status || item.crm_status || 'A_CONTACTER';
+          combined.in_pipeline = Boolean(
+            prev.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
+          );
+          combined.rdv_done = Boolean(prev.rdv_done);
+          combined.deal_amount = Math.max(0, parseInt(prev.deal_amount || 0, 10) || 0);
+          combined.notes = String(prev.notes || '');
+          combined.updated_at = prevUp;
+        } else {
+          if (prev.crm_status && prev.crm_status !== 'A_CONTACTER' && (!item.crm_status || item.crm_status === 'A_CONTACTER')) {
+            combined.crm_status = prev.crm_status;
+          }
+          combined.in_pipeline = Boolean(
+            prev.in_pipeline || item.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
+          );
+          combined.rdv_done = Boolean(prev.rdv_done || item.rdv_done);
+          combined.deal_amount = parseInt(item.deal_amount || prev.deal_amount || 0, 10) || 0;
+          combined.notes = (item.notes && String(item.notes).trim()) ? item.notes : (prev.notes || '');
+          combined.updated_at = itemUp || prevUp || '';
         }
-        combined.in_pipeline = Boolean(
-          prev.in_pipeline || item.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
-        );
-        combined.rdv_done = Boolean(prev.rdv_done || item.rdv_done);
-        combined.deal_amount = parseInt(item.deal_amount || prev.deal_amount || 0, 10) || 0;
-        combined.notes = (item.notes && String(item.notes).trim()) ? item.notes : (prev.notes || '');
-        combined.updated_at = item.updated_at || prev.updated_at || '';
         map.set(key, combined);
       } else {
         if (!item.crm_status) item.crm_status = 'A_CONTACTER';
@@ -2542,6 +2592,7 @@ INDEX_HTML = """<!DOCTYPE html>
     cityEl.value = cities.includes(curCity) ? curCity : 'ALL';
 
     const pipeLeads = LEADS.filter(isLeadInPipeline);
+    const untriagedCount = LEADS.filter(b => !isLeadInPipeline(b)).length;
     const countAContacter = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'A_CONTACTER').length;
     const countContacte = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CONTACTE').length;
     const countClient = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CLIENT').length;
@@ -2549,14 +2600,19 @@ INDEX_HTML = """<!DOCTYPE html>
     const countPaye = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'PAYE').length;
     const countIgnore = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'IGNORE').length;
 
+    const untriagedOptHtml = CURRENT_VIEW !== 'crm'
+      ? `<option value="NOUVEAU">🔍 Nouveaux non classés (${untriagedCount})</option>`
+      : '';
+
     crmEl.innerHTML = `<option value="ALL">📋 Tous statuts CRM (${CURRENT_VIEW === 'crm' ? pipeLeads.length : LEADS.length})</option>` +
+      untriagedOptHtml +
       `<option value="A_CONTACTER">📥 1. À contacter (${countAContacter})</option>` +
       `<option value="CONTACTE">⏳ 2. Déjà contacté (${countContacte})</option>` +
       `<option value="CLIENT">📅 3. Rendez-vous (${countClient})</option>` +
       `<option value="LIVRE">🛠️ 4. Livré (${countLivre})</option>` +
       `<option value="PAYE">💰 5. Payé (${countPaye})</option>` +
       `<option value="IGNORE">❌ 6. Échec / Sans suite (${countIgnore})</option>`;
-    crmEl.value = ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'RDV', 'LIVRE', 'PAYE', 'IGNORE', 'ECHEC'].includes(curCrm) ? curCrm : 'ALL';
+    crmEl.value = ['ALL', 'NOUVEAU', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'RDV', 'LIVRE', 'PAYE', 'IGNORE', 'ECHEC'].includes(curCrm) ? curCrm : 'ALL';
 
     const countStatus = (st) => LEADS.filter(b => b.status === st).length;
     const countHasFb = LEADS.filter(b => Boolean(b.facebook_url)).length;
@@ -2680,8 +2736,9 @@ INDEX_HTML = """<!DOCTYPE html>
         populateFilterDropdowns();
         render();
         const added = Math.max(0, LEADS.length - prevCount);
-        const alreadyKnown = data.leads.filter(isLeadInPipeline).length;
-        showBanner(`✅ Scan terminé : ${data.leads.length} auditées (${added} nouvelles, ${alreadyKnown} déjà connues dans ton Pipeline) !`);
+        const scannedCount = typeof data.scan_count === 'number' ? data.scan_count : data.leads.length;
+        const alreadyKnown = typeof data.known_in_scan === 'number' ? data.known_in_scan : LEADS.filter(isLeadInPipeline).length;
+        showBanner(`✅ Scan terminé : ${scannedCount} auditées (${added} nouvelles, ${alreadyKnown} déjà connues dans ton Pipeline) !`);
       }
     } catch (err) {
       showBanner(`❌ Erreur : ${err}`, true);
@@ -3030,15 +3087,11 @@ INDEX_HTML = """<!DOCTYPE html>
 
       if (cf !== 'ALL' && item.city !== cf) return false;
       if (crmf !== 'ALL') {
-        const targetGroup = normalizeStageGroup(crmf);
-        if (CURRENT_VIEW === 'crm') {
-          if (stageGroup !== targetGroup) return false;
+        if (crmf === 'NOUVEAU') {
+          if (inPipe) return false;
         } else {
-          if (crmf === 'A_CONTACTER') {
-            if (stageGroup !== 'A_CONTACTER') return false;
-          } else if (stageGroup !== targetGroup) {
-            return false;
-          }
+          const targetGroup = normalizeStageGroup(crmf);
+          if (!inPipe || stageGroup !== targetGroup) return false;
         }
       }
       if (st === 'HAS_FACEBOOK') {
@@ -3298,7 +3351,17 @@ class ProspectHandler(BaseHTTPRequestHandler):
                 current = load_saved_leads()
                 merged = merge_leads(current, [lead_dict])
                 save_leads(merged)
-            self._send_json({"lead": lead_dict})
+                norm_key = f"{name.lower()}|audit direct"
+                merged_lead = next(
+                    (
+                        item
+                        for item in merged
+                        if f"{str(item.get('name', '')).strip().lower()}|{str(item.get('city', '')).strip().lower()}"
+                        == norm_key
+                    ),
+                    lead_dict,
+                )
+            self._send_json({"lead": merged_lead})
             return
 
         if parsed.path == "/api/scan":
@@ -3320,10 +3383,25 @@ class ProspectHandler(BaseHTTPRequestHandler):
             export_csv(audited_leads, BASE_DIR / f"leads_{city}.csv")
 
             incoming_dicts = [lead_to_dict(b) for b in audited_leads]
+            incoming_keys = {
+                f"{str(d.get('name', '')).strip().lower()}|{str(d.get('city', '')).strip().lower()}"
+                for d in incoming_dicts
+            }
             with STATE_LOCK:
                 merged_dicts = merge_leads(load_saved_leads(), incoming_dicts)
                 save_leads(merged_dicts)
-            self._send_json({"leads": merged_dicts})
+            known_in_scan = sum(
+                1
+                for item in merged_dicts
+                if f"{str(item.get('name', '')).strip().lower()}|{str(item.get('city', '')).strip().lower()}"
+                in incoming_keys
+                and bool(item.get("in_pipeline") or (item.get("crm_status") in PIPELINE_ACTIVE_STATUSES))
+            )
+            self._send_json({
+                "leads": merged_dicts,
+                "scan_count": len(incoming_dicts),
+                "known_in_scan": known_in_scan,
+            })
             return
 
         self._send_json({"error": "Route inconnue"}, status=404)
