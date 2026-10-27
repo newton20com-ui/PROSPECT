@@ -16,6 +16,7 @@ from prospect_bf import (
     SECTOR_CATEGORIES,
     BusinessLead,
     audit_single_business,
+    classify_business_sector,
     export_csv,
     fetch_osm_businesses,
     is_likely_mobile_bf,
@@ -108,6 +109,12 @@ def load_saved_leads() -> list[dict]:
                         lead["email"] = str(lead.get("email") or "")
                         lead["has_fb_pixel"] = bool(lead.get("has_fb_pixel", False))
                         lead["has_google_analytics"] = bool(lead.get("has_google_analytics", False))
+                        skey = str(lead.get("sector_key") or "").strip().lower()
+                        if not skey or skey not in SECTOR_CATEGORIES or skey == "all":
+                            skey, slbl = classify_business_sector({"name": lead.get("name", ""), "description": lead.get("sector", "")})
+                            lead["sector_key"] = skey
+                            if not lead.get("sector"):
+                                lead["sector"] = slbl
                         if not lead.get("maps_url"):
                             lat = lead.get("lat")
                             lon = lead.get("lon")
@@ -2180,6 +2187,20 @@ INDEX_HTML = """<!DOCTYPE html>
     entreprise: "💼 Bureaux, IT & Conseil"
   };
 
+  function getLeadSectorKey(item) {
+    if (!item) return 'entreprise';
+    const sk = String(item.sector_key || '').trim().toLowerCase();
+    if (sk && sk in SECTOR_LABELS && sk !== 'all') return sk;
+    const s = String(item.sector || '').toLowerCase();
+    for (const [k, lbl] of Object.entries(SECTOR_LABELS)) {
+      if (k === 'all') continue;
+      if (s === k || s.includes(k) || lbl.toLowerCase().includes(s)) {
+        return k;
+      }
+    }
+    return 'entreprise';
+  }
+
   let ACTIVE_DETAIL_LEAD = null;
 
   function setSalesOffer(offerKey) {
@@ -2623,11 +2644,11 @@ INDEX_HTML = """<!DOCTYPE html>
     let sectorHtml = `<option value="ALL">🏢 Tous secteurs (${LEADS.length})</option>`;
     Object.keys(SECTOR_LABELS).forEach(k => {
       if (k === 'all') return;
-      const c = LEADS.filter(b => b.sector_key === k).length;
+      const c = LEADS.filter(b => getLeadSectorKey(b) === k).length;
       sectorHtml += `<option value="${k}">${SECTOR_LABELS[k]} (${c})</option>`;
     });
     sectorEl.innerHTML = sectorHtml;
-    sectorEl.value = curSector;
+    sectorEl.value = (curSector in SECTOR_LABELS || curSector === 'ALL') ? curSector : 'ALL';
 
     const cMob = LEADS.filter(b => b.phone_type === 'MOBILE_WHATSAPP').length;
     const cFix = LEADS.filter(b => b.phone_type === 'FIXE_ONATEL').length;
@@ -2733,6 +2754,10 @@ INDEX_HTML = """<!DOCTYPE html>
         const prevCount = LEADS.length;
         LEADS = dedupeAndSortLeads([...LEADS, ...data.leads]);
         saveLocalBackup();
+        if (sector && sector !== 'all') {
+          const secEl = document.getElementById('sectorFilter');
+          if (secEl) secEl.value = sector;
+        }
         populateFilterDropdowns();
         render();
         const added = Math.max(0, LEADS.length - prevCount);
@@ -3097,7 +3122,7 @@ INDEX_HTML = """<!DOCTYPE html>
       if (st === 'HAS_FACEBOOK') {
         if (!item.facebook_url) return false;
       } else if (st !== 'ALL' && item.status !== st) return false;
-      if (sec !== 'ALL' && item.sector_key !== sec) return false;
+      if (sec !== 'ALL' && getLeadSectorKey(item) !== sec) return false;
       if (pf !== 'ALL' && item.phone_type !== pf) return false;
       if (q) {
         const hay = (
@@ -3413,16 +3438,33 @@ class ProspectHandler(BaseHTTPRequestHandler):
 
 
 def _seed_initial_leads_async() -> None:
+    should_seed = False
     if not STATE_FILE.exists():
+        should_seed = True
+    else:
         try:
-            raw_leads = fetch_osm_businesses("ouaga", "all", limit=75)
+            existing = load_saved_leads()
+            covered_sectors = {d.get("sector_key") for d in existing if d.get("sector_key")}
+            if len(existing) < 40 or len(covered_sectors) < 10:
+                should_seed = True
+        except Exception:
+            should_seed = True
+
+    if should_seed:
+        try:
+            raw_leads = fetch_osm_businesses("ouaga", "all", limit=80)
             with concurrent.futures.ThreadPoolExecutor(max_workers=14) as pool:
                 audited = list(pool.map(audit_single_business, raw_leads))
             audited.sort(
                 key=lambda b: (b.lead_score, is_likely_mobile_bf(b.phone_clean), bool(b.phone_clean)),
                 reverse=True,
             )
-            save_leads([lead_to_dict(b) for b in audited])
+            incoming = [lead_to_dict(b) for b in audited]
+            with STATE_LOCK:
+                existing = load_saved_leads() if STATE_FILE.exists() else []
+                merged = merge_leads(existing, incoming)
+                save_leads(merged)
+            print(f"[+] Base de leads initialisée avec succès ({len(merged)} prospects multi-secteurs).", flush=True)
         except Exception as exc:
             print(f"[!] Erreur init arrière-plan: {exc}", flush=True)
 
