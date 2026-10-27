@@ -1,1 +1,3 @@
-# ProspectBF utilise 100% la bibliothèque standard de Python (aucune dépendance externe requise)
+# ProspectBF utilise la bibliothèque standard de Python (urllib, http.server, etc.)
+# Dépendances cloud / HTTP client :
+requests>=2.31.0

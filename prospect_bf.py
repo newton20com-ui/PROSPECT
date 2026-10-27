@@ -36,14 +36,41 @@ CITIES = {
     "ouaga": {
         "name": "Ouagadougou",
         "bbox": (12.28, -1.65, 12.46, -1.40),
+        "center": (12.3714, -1.5197),
     },
     "bobo": {
         "name": "Bobo-Dioulasso",
         "bbox": (11.12, -4.38, 11.25, -4.22),
+        "center": (11.1772, -4.2979),
+    },
+    "koudougou": {
+        "name": "Koudougou",
+        "bbox": (12.18, -2.43, 12.31, -2.30),
+        "center": (12.2500, -2.3667),
+    },
+    "banfora": {
+        "name": "Banfora",
+        "bbox": (10.58, -4.82, 10.69, -4.71),
+        "center": (10.6333, -4.7667),
+    },
+    "ouahigouya": {
+        "name": "Ouahigouya",
+        "bbox": (13.52, -2.47, 13.64, -2.37),
+        "center": (13.5828, -2.4216),
+    },
+    "tenkodogo": {
+        "name": "Tenkodogo",
+        "bbox": (11.73, -0.41, 11.83, -0.32),
+        "center": (11.7833, -0.3667),
+    },
+    "kaya": {
+        "name": "Kaya",
+        "bbox": (13.03, -1.13, 13.14, -1.03),
+        "center": (13.0833, -1.0833),
     },
 }
 
-# 11 B2B sector categories tailored to Ouagadougou & Bobo-Dioulasso
+# B2B sector categories tailored to Burkinabè cities
 SECTOR_CATEGORIES = {
     "all": "🏢 Tous les secteurs B2B privés",
     "hotel": "🏨 Hôtels, Auberges & Résidences",
@@ -86,6 +113,9 @@ class BusinessLead:
     has_https: bool = False
     has_viewport: bool = False
     has_whatsapp_link: bool = False
+    has_fb_pixel: bool = False
+    has_google_analytics: bool = False
+    crm_status: str = "A_CONTACTER"
     issues: list[str] = field(default_factory=list)
     lead_score: int = 0
     pitch_angle: str = ""
@@ -503,8 +533,9 @@ def fetch_osm_businesses(city_key: str = "ouaga", sector_filter: str = "all", li
             or "Quartier non précisé"
         )
 
-        lat = el.get("lat") or el.get("center", {}).get("lat", 12.3714)
-        lon = el.get("lon") or el.get("center", {}).get("lon", -1.5197)
+        el_center = el.get("center") or {}
+        lat = el.get("lat") or el_center.get("lat", city_info.get("center", (12.3714, -1.5197))[0])
+        lon = el.get("lon") or el_center.get("lon", city_info.get("center", (12.3714, -1.5197))[1])
 
         leads.append(
             BusinessLead(
@@ -575,6 +606,12 @@ def fetch_osm_businesses(city_key: str = "ouaga", sector_filter: str = "all", li
 
 def get_offline_fallback_leads(city_name: str, sector_filter: str = "all") -> list[BusinessLead]:
     """Rich multi-sector fallback dataset for offline testing."""
+    city_center = (12.3714, -1.5197)
+    for c_key, c_info in CITIES.items():
+        if c_key == city_name.lower() or c_info.get("name", "").lower() == city_name.lower():
+            city_center = c_info.get("center", city_center)
+            break
+
     samples = [
         ("Hôtel Ricardo", "hotel", "Kossodo", "+226 25 35 61 00", "http://www.hotelricardo-bf.com", ""),
         ("Polyclinique Internationale de Ouagadougou", "sante", "Zone du Bois", "+226 70 20 11 22", "", ""),
@@ -603,8 +640,8 @@ def get_offline_fallback_leads(city_name: str, sector_filter: str = "all") -> li
                 website=web,
                 facebook_url=fb,
                 email="",
-                lat=12.37,
-                lon=-1.52,
+                lat=city_center[0],
+                lon=city_center[1],
             )
         )
     return out
@@ -718,19 +755,48 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
                 w in body_lower for w in ("wa.me/", "api.whatsapp.com", "whatsapp://")
             )
 
-            if not lead.has_https:
-                lead.issues.append("Site non sécurisé (HTTP sans cadenas SSL)")
-            if elapsed_ms > 2500:
-                lead.issues.append(f"Site lent sur réseau mobile ({elapsed_ms} ms)")
-            if not lead.has_viewport:
-                lead.issues.append("Non adapté aux téléphones (pas de viewport mobile)")
-            if not lead.has_whatsapp_link:
-                lead.issues.append("Aucun bouton de contact rapide WhatsApp intégré")
+            # Detect Meta / Facebook Pixel
+            lead.has_fb_pixel = bool(
+                "connect.facebook.net" in body_lower
+                or "fbevents.js" in body_lower
+                or "facebook.com/tr/" in body_lower
+                or "facebook.com/tr?" in body_lower
+                or re.search(r"\bfbq\s*\(", body_lower)
+            )
 
-            if len(lead.issues) >= 2 or not lead.has_https:
+            # Detect Google Analytics / Google Tag Manager
+            lead.has_google_analytics = bool(
+                "googletagmanager.com" in body_lower
+                or "google-analytics.com" in body_lower
+                or re.search(r"\bgtag\s*\(", body_lower)
+                or re.search(r"\bga\s*\(", body_lower)
+            )
+
+            # Technical flaws determine core website status
+            technical_flaws: list[str] = []
+            if not lead.has_https:
+                technical_flaws.append("Site non sécurisé (HTTP sans cadenas SSL)")
+            if elapsed_ms > 2500:
+                technical_flaws.append(f"Site lent sur réseau mobile ({elapsed_ms} ms)")
+            if not lead.has_viewport:
+                technical_flaws.append("Non adapté aux téléphones (pas de viewport mobile)")
+            if not lead.has_whatsapp_link:
+                technical_flaws.append("Aucun bouton de contact rapide WhatsApp intégré")
+
+            lead.issues.extend(technical_flaws)
+
+            # Marketing tracking flaws (decoupled from technical status)
+            if not lead.has_fb_pixel and not lead.has_google_analytics:
+                lead.issues.append("Aucun Pixel FB ni Google Analytics détecté")
+            elif not lead.has_fb_pixel:
+                lead.issues.append("Pixel Facebook manquant (pas de retargeting)")
+            elif not lead.has_google_analytics:
+                lead.issues.append("Google Analytics manquant")
+
+            if len(technical_flaws) >= 2 or not lead.has_https:
                 lead.audit_status = "SITE_FAIBLE"
-                lead.lead_score = 74 + min(18, len(lead.issues) * 5)
-                flaws_str = ", ".join(lead.issues[:2]).lower()
+                lead.lead_score = 74 + min(18, len(technical_flaws) * 5)
+                flaws_str = ", ".join(technical_flaws[:2]).lower()
                 lead.pitch_angle = (
                     f"Bonjour {lead.name}, j'ai visité votre site ({lead.website}) depuis mon téléphone "
                     f"et j'ai relevé un souci technique qui freine vos clients : {flaws_str}. "
@@ -738,7 +804,7 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
                 )
             else:
                 lead.audit_status = "SITE_OK"
-                lead.lead_score = 35
+                lead.lead_score = 35 if (lead.has_fb_pixel or lead.has_google_analytics) else 45
                 lead.pitch_angle = (
                     f"Bonjour {lead.name}, votre site web fonctionne bien. Si vous souhaitez automatiser "
                     f"vos réponses clients sur WhatsApp ou vos réservations, faisons un point rapide."
@@ -788,6 +854,7 @@ def export_csv(leads: list[BusinessLead], output_path: Path) -> None:
         writer.writerow([
             "Score (/100)",
             "Statut Digital",
+            "Statut CRM",
             "Entreprise",
             "Secteur",
             "Ville",
@@ -804,6 +871,7 @@ def export_csv(leads: list[BusinessLead], output_path: Path) -> None:
             writer.writerow([
                 b.lead_score,
                 b.audit_status,
+                getattr(b, "crm_status", "A_CONTACTER"),
                 b.name,
                 b.sector,
                 b.city,

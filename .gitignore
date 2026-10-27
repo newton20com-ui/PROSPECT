@@ -2,3 +2,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 .env
+
+# Transient / scratch test scripts
+test_adversarial_*
+adversarial_*
+
+# Local cache and dynamic state files
+osm_cache_*.json
+leads_state.json
+
+# Agents workspace metadata
+.agents/

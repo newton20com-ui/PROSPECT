@@ -34,7 +34,8 @@ def lead_to_dict(b: BusinessLead) -> dict:
     if has_coords:
         maps_url = f"https://www.google.com/maps/search/?api=1&query={b.lat},{b.lon}"
     else:
-        q = quote_plus(f"{b.name} {b.city if b.city != 'Audit Direct' else 'Burkina Faso'}")
+        loc = b.city if b.city and b.city != "Audit Direct" else "Burkina Faso"
+        q = quote_plus(f"{b.name} {loc}".strip())
         maps_url = f"https://www.google.com/maps/search/?api=1&query={q}"
     return {
         "name": b.name,
@@ -56,17 +57,44 @@ def lead_to_dict(b: BusinessLead) -> dict:
         "lat": b.lat,
         "lon": b.lon,
         "maps_url": maps_url,
+        "crm_status": getattr(b, "crm_status", "A_CONTACTER") or "A_CONTACTER",
+        "has_fb_pixel": bool(getattr(b, "has_fb_pixel", False)),
+        "has_google_analytics": bool(getattr(b, "has_google_analytics", False)),
     }
 
 
-STATE_LOCK = threading.Lock()
+STATE_LOCK = threading.RLock()
 
 
 def load_saved_leads() -> list[dict]:
+    from urllib.parse import quote_plus
     with STATE_LOCK:
         if STATE_FILE.exists():
             try:
-                return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                raw_leads = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                if isinstance(raw_leads, list):
+                    normalized = []
+                    for item in raw_leads:
+                        if not isinstance(item, dict):
+                            continue
+                        lead = dict(item)
+                        if not lead.get("crm_status"):
+                            lead["crm_status"] = "A_CONTACTER"
+                        lead["has_fb_pixel"] = bool(lead.get("has_fb_pixel", False))
+                        lead["has_google_analytics"] = bool(lead.get("has_google_analytics", False))
+                        if not lead.get("maps_url"):
+                            lat = lead.get("lat")
+                            lon = lead.get("lon")
+                            city = lead.get("city", "")
+                            name = lead.get("name", "")
+                            if lat and lon and city != "Audit Direct":
+                                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                            else:
+                                loc = city if city and city != "Audit Direct" else "Burkina Faso"
+                                q = quote_plus(f"{name} {loc}".strip())
+                                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={q}"
+                        normalized.append(lead)
+                    return normalized
             except Exception:
                 pass
     return []
@@ -78,16 +106,61 @@ def save_leads(leads_dicts: list[dict]) -> None:
 
 
 def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Fusionne les nouveaux leads avec les existants sans écraser les anciens scans."""
+    """Fusionne les nouveaux leads avec les existants sans écraser les statuts CRM."""
+    from urllib.parse import quote_plus
     merged_map: dict[str, dict] = {}
     for item in existing:
-        key = f"{item.get('name', '').strip().lower()}|{item.get('city', '').strip().lower()}"
-        if key:
-            merged_map[key] = item
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        city = str(item.get("city", "")).strip()
+        key = f"{name.lower()}|{city.lower()}"
+        if not name and not city:
+            continue
+        entry = dict(item)
+        if not entry.get("crm_status"):
+            entry["crm_status"] = "A_CONTACTER"
+        merged_map[key] = entry
+
     for item in incoming:
-        key = f"{item.get('name', '').strip().lower()}|{item.get('city', '').strip().lower()}"
-        if key:
-            merged_map[key] = item
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        city = str(item.get("city", "")).strip()
+        key = f"{name.lower()}|{city.lower()}"
+        if not name and not city:
+            continue
+        entry = dict(item)
+        if key in merged_map:
+            existing_lead = merged_map[key]
+            existing_status = existing_lead.get("crm_status")
+            combined = dict(existing_lead)
+            combined.update(entry)
+            if existing_status:
+                combined["crm_status"] = existing_status
+            else:
+                combined["crm_status"] = entry.get("crm_status") or "A_CONTACTER"
+            merged_map[key] = combined
+        else:
+            if not entry.get("crm_status"):
+                entry["crm_status"] = "A_CONTACTER"
+            merged_map[key] = entry
+
+    for lead in merged_map.values():
+        lead.setdefault("has_fb_pixel", False)
+        lead.setdefault("has_google_analytics", False)
+        if not lead.get("maps_url"):
+            lat = lead.get("lat")
+            lon = lead.get("lon")
+            c = lead.get("city", "")
+            n = lead.get("name", "")
+            if lat and lon and c != "Audit Direct":
+                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+            else:
+                loc = c if c and c != "Audit Direct" else "Burkina Faso"
+                q = quote_plus(f"{n} {loc}".strip())
+                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={q}"
+
     result = list(merged_map.values())
     result.sort(
         key=lambda b: (
@@ -216,6 +289,10 @@ INDEX_HTML = """<!DOCTYPE html>
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .tab-btn.active {
@@ -592,6 +669,181 @@ INDEX_HTML = """<!DOCTYPE html>
       font-size: 0.82rem;
       font-weight: 600;
     }
+    /* Offer Selector Card (R3) */
+    .offer-selector-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .offer-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+
+    @media (min-width: 600px) {
+      .offer-header {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+    }
+
+    .offer-badge-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .offer-subtitle {
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .offer-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    @media (min-width: 680px) {
+      .offer-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .offer-card-btn {
+      background: #0f1520;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+      min-height: 42px;
+    }
+
+    .offer-card-btn:hover {
+      border-color: #3b82f6;
+    }
+
+    .offer-card-btn.active {
+      background: rgba(59, 130, 246, 0.16);
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue);
+    }
+
+    .offer-icon {
+      font-size: 1.25rem;
+      flex: 0 0 auto;
+    }
+
+    .offer-btn-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .offer-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .offer-desc {
+      font-size: 0.68rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 4-Pill Segmented Mini-CRM Control (R1) */
+    .crm-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      background: #0f1520;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 8px;
+    }
+
+    .crm-pill {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-size: 0.70rem;
+      font-weight: 700;
+      padding: 6px 3px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.15s ease-in-out;
+      touch-action: manipulation;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .crm-pill:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .crm-pill.crm-a-contacter.active {
+      background: #1e293b;
+      border-color: #64748b;
+      color: #f8fafc;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .crm-pill.crm-contacte.active {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: var(--amber);
+      color: #fde68a;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.25);
+    }
+
+    .crm-pill.crm-client.active {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: var(--green);
+      color: #6ee7b7;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .crm-pill.crm-ignore.active {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: #fca5a5;
+    }
+
+    .lead-card.crm-state-IGNORE {
+      opacity: 0.55;
+      border-color: #334155;
+    }
+
+    /* Tracking Badges (R4) */
+    .tag-pixel { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+    .tag-analytics { background: rgba(245, 158, 11, 0.2); color: #fde68a; border: 1px solid #f59e0b; }
   </style>
 </head>
 <body>
@@ -621,6 +873,11 @@ INDEX_HTML = """<!DOCTYPE html>
         <select id="scanCity">
           <option value="ouaga">📍 Ouagadougou</option>
           <option value="bobo">📍 Bobo-Dioulasso</option>
+          <option value="koudougou">📍 Koudougou</option>
+          <option value="banfora">📍 Banfora</option>
+          <option value="ouahigouya">📍 Ouahigouya</option>
+          <option value="tenkodogo">📍 Tenkodogo</option>
+          <option value="kaya">📍 Kaya</option>
         </select>
         <select id="scanSector">
           <option value="all">🏢 Tous les 16 secteurs B2B</option>
@@ -704,6 +961,37 @@ INDEX_HTML = """<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- SERVICE A VENDRE / SALES OFFER SELECTOR -->
+    <div class="offer-selector-card">
+      <div class="offer-header">
+        <span class="offer-badge-title">🎯 SERVICE À VENDRE</span>
+        <span class="offer-subtitle">Adapte instantanément le pitch et le message WhatsApp sur chaque fiche :</span>
+      </div>
+      <div class="offer-grid">
+        <button type="button" id="offerBtn_WEB" class="offer-card-btn active" onclick="setSalesOffer('WEB')">
+          <span class="offer-icon">🌐</span>
+          <div class="offer-btn-text">
+            <span class="offer-name">Site Web & Refonte</span>
+            <span class="offer-desc">Vitrine, Vitesse, SSL, Mobile</span>
+          </div>
+        </button>
+        <button type="button" id="offerBtn_ADS" class="offer-card-btn" onclick="setSalesOffer('ADS')">
+          <span class="offer-icon">📱</span>
+          <div class="offer-btn-text">
+            <span class="offer-name">Facebook & Ads Meta</span>
+            <span class="offer-desc">Publicités ciblées, Pixel & Retargeting</span>
+          </div>
+        </button>
+        <button type="button" id="offerBtn_MAPS" class="offer-card-btn" onclick="setSalesOffer('MAPS')">
+          <span class="offer-icon">📍</span>
+          <div class="offer-btn-text">
+            <span class="offer-name">Google Maps & SEO Local</span>
+            <span class="offer-desc">Top 3 local, Fiche Maps & Avis clients</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
     <!-- RESPONSIVE FILTERS -->
     <div class="filters-box">
       <div class="search-row">
@@ -712,6 +1000,7 @@ INDEX_HTML = """<!DOCTYPE html>
       </div>
       <div class="selects-grid">
         <select id="cityFilter"></select>
+        <select id="crmFilter"></select>
         <select id="statusFilter"></select>
         <select id="sectorFilter"></select>
         <select id="phoneFilter"></select>
@@ -721,8 +1010,8 @@ INDEX_HTML = """<!DOCTYPE html>
     <div class="filter-summary">
       <span id="filterCountText">Chargement...</span>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-reset" style="padding:4px 9px; font-size:0.74rem; min-height:28px;" onclick="exportLeadsCsv()">📥 Export CSV</button>
-        <button class="btn btn-reset" style="padding:4px 9px; font-size:0.74rem; min-height:28px; color:#fca5a5;" onclick="clearAllLeads()">🗑️ Vider</button>
+        <button class="btn btn-reset" style="padding:6px 12px; font-size:0.76rem;" onclick="exportLeadsCsv()">📥 Export CSV</button>
+        <button class="btn btn-reset" style="padding:6px 12px; font-size:0.76rem; color:#fca5a5;" onclick="clearAllLeads()">🗑️ Vider</button>
       </div>
     </div>
 
@@ -732,6 +1021,22 @@ INDEX_HTML = """<!DOCTYPE html>
   <script>
     let LEADS = [];
     const STORAGE_KEY = 'prospectbf_leads_v26';
+    let CURRENT_OFFER = 'WEB';
+    try {
+      CURRENT_OFFER = localStorage.getItem('prospectbf_offer') || localStorage.getItem('prospectbf_sales_offer') || 'WEB';
+    } catch (e) {}
+
+    const safeAttrEnc = (str) => encodeURIComponent(str || '').replace(/'/g, '%27');
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     const SECTOR_LABELS = {
       all: "🏢 Tous les secteurs",
@@ -753,12 +1058,134 @@ INDEX_HTML = """<!DOCTYPE html>
       entreprise: "💼 Bureaux, IT & Conseil"
     };
 
+    function setSalesOffer(offerKey) {
+      if (!['WEB', 'ADS', 'MAPS'].includes(offerKey)) return;
+      CURRENT_OFFER = offerKey;
+      try {
+        localStorage.setItem('prospectbf_offer', offerKey);
+        localStorage.setItem('prospectbf_sales_offer', offerKey);
+      } catch (e) {}
+      ['WEB', 'ADS', 'MAPS'].forEach(k => {
+        const btn = document.getElementById('offerBtn_' + k);
+        if (btn) btn.classList.toggle('active', k === offerKey);
+      });
+      render();
+    }
+
+    function buildWhatsAppUrl(phone, pitch) {
+      if (!phone || phone === 'Non renseigné') return '';
+      const digits = phone.replace(/[^0-9]/g, '');
+      if (!digits) return '';
+      return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(pitch);
+    }
+
+    function copyPitchText(btn, text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => { btn.textContent = '📋 Copier Pitch'; }, 1500);
+    }
+
+    async function setLeadCrmStatus(name, newStatus, city) {
+      const match = LEADS.find(l => {
+        const sameName = (l.name || '').trim().toLowerCase() === (name || '').trim().toLowerCase();
+        if (city && city !== 'Audit Direct') {
+          return sameName && (l.city || '').trim().toLowerCase() === city.trim().toLowerCase();
+        }
+        return sameName;
+      });
+      if (match) {
+        match.crm_status = newStatus;
+        saveLocalBackup();
+        populateFilterDropdowns();
+        render();
+        try {
+          await fetch('/api/leads/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: match.name, city: match.city, crm_status: newStatus })
+          });
+        } catch (e) {
+          console.warn('Backend CRM sync failed, cached locally', e);
+        }
+      }
+    }
+
+    function generatePitch(lead, offer) {
+      const off = offer || CURRENT_OFFER || 'WEB';
+      const name = lead.name || "l'entreprise";
+      const city = lead.city && lead.city !== 'Audit Direct' ? lead.city : 'Burkina Faso';
+      const sector = SECTOR_LABELS[lead.sector_key] || lead.sector || "votre secteur";
+      const neighborhood = lead.neighborhood && lead.neighborhood !== 'Quartier non précisé' ? `vers ${lead.neighborhood}` : `à ${city}`;
+      const status = lead.status || 'SANS_SITE';
+      const issues = lead.issues || [];
+
+      if (off === 'WEB') {
+        if (status === 'SITE_MORT') {
+          return `Bonjour ${name}, je voulais consulter votre site web (${lead.website || 'actuel'}) à ${city} mais il affiche une page d'erreur technique (en panne ou hors-ligne). Vos clients potentiels tombent sur une page cassée : je peux vous le remettre en ligne rapidement avec une refonte moderne et un bouton WhatsApp direct. Dispo pour en parler ?`;
+        }
+        if (status === 'SITE_FAIBLE') {
+          const flaws = issues.filter(iss => !iss.includes('Pixel') && !iss.includes('Analytics')).slice(0, 2).join(', ').toLowerCase() || "la lenteur sur mobile et l'absence de cadenas SSL sécurisé";
+          return `Bonjour ${name}, j'ai visité votre site web (${lead.website}) depuis mon téléphone à ${city}. J'ai relevé des défauts techniques qui freinent vos clients (${flaws}). Je peux moderniser votre vitrine pour un chargement en 1s sur smartphone avec contact WhatsApp direct. Auriez-vous 5 minutes pour échanger ?`;
+        }
+        if (status === 'FACEBOOK_SEUL') {
+          return `Bonjour ${name}, votre page Facebook à ${city} est active, mais vous n'avez pas de site web officiel. Sur Google, les clients qui cherchent des services de ${sector} commandent chez des concurrents avec vitrine officielle. Je vous propose un site vitrine rapide relié à votre WhatsApp en 72h. Quand seriez-vous disponible ?`;
+        }
+        if (status === 'SANS_SITE') {
+          return `Bonjour ${name}, en recherchant vos services (${sector}) à ${city}, j'ai remarqué que vous n'avez pas encore de vitrine digitale. Vos futurs clients vous cherchent sur Google : je peux vous créer un site vitrine professionnel avec catalogue et bouton WhatsApp direct en 72h. Pouvons-nous échanger quelques minutes ?`;
+        }
+        if (status === 'SITE_OK') {
+          return `Bonjour ${name}, votre site web fonctionne bien. Nous accompagnons les entreprises de ${sector} à ${city} pour y intégrer des fonctionnalités de prise de rendez-vous automatique et un tunnel WhatsApp pour doubler vos demandes de devis. Seriez-vous ouvert à une démonstration ?`;
+        }
+        return `Bonjour ${name}, nous vous proposons un site web moderne, rapide et optimisé mobile avec bouton WhatsApp direct pour booster votre activité à ${city}. Échangeons rapidement !`;
+      }
+
+      if (off === 'ADS') {
+        const hasPixel = lead.has_fb_pixel;
+        const hasGA = lead.has_google_analytics;
+        if (!hasPixel || !hasGA || issues.some(iss => iss.includes('Pixel') || iss.includes('Analytics'))) {
+          return `Bonjour ${name}, nous avons analysé votre présence digitale à ${city} : vous recevez des visiteurs mais sans Pixel Facebook ni outil de suivi, vous perdez 95% de vos prospects sans pouvoir les recibler. Nous gérons vos publicités sponsorisées Facebook & Instagram ciblées et configurons le pixel de retargeting pour convertir les personnes intéressées directement sur WhatsApp. Avez-vous 5 minutes pour en discuter ?`;
+        }
+        if (lead.facebook_url || status === 'FACEBOOK_SEUL') {
+          return `Bonjour ${name}, j'ai vu votre page Facebook à ${city}. Les publications gratuites ne touchent plus qu'une infime partie de votre audience. Nous pilotons des campagnes de publicités sponsorisées Facebook & Meta Ads ultra-ciblées sur les clients recherchant ${sector} à ${city}, avec recibler des visiteurs pour générer des contacts qualifiés sur WhatsApp. Seriez-vous disponible cette semaine ?`;
+        }
+        return `Bonjour ${name}, à ${city}, vos clients potentiels passent des heures chaque jour sur Facebook et Instagram. Nous créons et gérons des campagnes de publicité sponsorisée Meta Ads pour ${sector} afin de générer des messages de clients qualifiés directement sur votre WhatsApp grâce au ciblage et au retargeting pixel. Quand pouvons-nous en parler ?`;
+      }
+
+      if (off === 'MAPS') {
+        if (lead.neighborhood && lead.neighborhood !== 'Quartier non précisé') {
+          return `Bonjour ${name}, lorsqu'un client recherche "${sector}" ${neighborhood} ou à ${city} sur Google Maps, est-ce que votre entreprise ressort dans les 3 premiers résultats ? Nous optimisons votre visibilité Google Maps (SEO local, Top 3 maps, avis clients et photos) pour capter tous les appels et visites de votre zone. Souhaitez-vous un audit gratuit de votre fiche Maps ?`;
+        }
+        return `Bonjour ${name}, à ${city}, la majorité des clients recherchent "${sector}" directement sur Google Maps depuis leur téléphone portable. Nous positionnons votre fiche Google Maps dans le Top 3 local grâce au SEO local et aux avis clients pour multiplier vos appels et visites. Dispo pour un test rapide de votre positionnement ?`;
+      }
+
+      return `Bonjour ${name}, je vous contacte pour développer la visibilité de votre entreprise à ${city}. Pouvons-nous échanger ?`;
+    }
+
     function dedupeAndSortLeads(list) {
       const map = new Map();
       list.forEach(item => {
         if (!item || !item.name) return;
         const key = `${item.name.trim().toLowerCase()}|${(item.city || '').trim().toLowerCase()}`;
-        map.set(key, item);
+        if (map.has(key)) {
+          const prev = map.get(key);
+          const combined = Object.assign({}, prev, item);
+          if (prev.crm_status && prev.crm_status !== 'A_CONTACTER' && (!item.crm_status || item.crm_status === 'A_CONTACTER')) {
+            combined.crm_status = prev.crm_status;
+          }
+          map.set(key, combined);
+        } else {
+          if (!item.crm_status) item.crm_status = 'A_CONTACTER';
+          map.set(key, item);
+        }
       });
       const arr = Array.from(map.values());
       arr.sort((a, b) => {
@@ -779,7 +1206,8 @@ INDEX_HTML = """<!DOCTYPE html>
     function loadLocalBackup() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
       } catch (e) {
         return [];
       }
@@ -827,6 +1255,7 @@ INDEX_HTML = """<!DOCTYPE html>
     function resetFilters() {
       document.getElementById('searchInput').value = '';
       document.getElementById('cityFilter').value = 'ALL';
+      document.getElementById('crmFilter').value = 'ALL';
       document.getElementById('statusFilter').value = 'ALL';
       document.getElementById('sectorFilter').value = 'ALL';
       document.getElementById('phoneFilter').value = 'ALL';
@@ -836,11 +1265,13 @@ INDEX_HTML = """<!DOCTYPE html>
 
     function populateFilterDropdowns() {
       const cityEl = document.getElementById('cityFilter');
+      const crmEl = document.getElementById('crmFilter');
       const statusEl = document.getElementById('statusFilter');
       const sectorEl = document.getElementById('sectorFilter');
       const phoneEl = document.getElementById('phoneFilter');
 
       const curCity = cityEl.value || 'ALL';
+      const curCrm = crmEl.value || 'ALL';
       const curStatus = statusEl.value || 'ALL';
       const curSector = sectorEl.value || 'ALL';
       const curPhone = phoneEl.value || 'ALL';
@@ -853,6 +1284,20 @@ INDEX_HTML = """<!DOCTYPE html>
       });
       cityEl.innerHTML = cityHtml;
       cityEl.value = cities.includes(curCity) ? curCity : 'ALL';
+
+      const countAContacter = LEADS.filter(b => (b.crm_status || 'A_CONTACTER') === 'A_CONTACTER').length;
+      const countContacte   = LEADS.filter(b => b.crm_status === 'CONTACTE').length;
+      const countClient     = LEADS.filter(b => b.crm_status === 'CLIENT').length;
+      const countIgnore     = LEADS.filter(b => b.crm_status === 'IGNORE').length;
+
+      crmEl.innerHTML = `
+        <option value="ALL">📋 Tout le CRM (${LEADS.length})</option>
+        <option value="A_CONTACTER">⚪ À contacter (${countAContacter})</option>
+        <option value="CONTACTE">🟡 Contacté (${countContacte})</option>
+        <option value="CLIENT">🟢 RDV / Client (${countClient})</option>
+        <option value="IGNORE">🔴 Ignoré (${countIgnore})</option>
+      `;
+      crmEl.value = ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'IGNORE'].includes(curCrm) ? curCrm : 'ALL';
 
       const countStatus = (st) => LEADS.filter(b => b.status === st).length;
       const countHasFb = LEADS.filter(b => Boolean(b.facebook_url)).length;
@@ -902,13 +1347,16 @@ INDEX_HTML = """<!DOCTYPE html>
         LEADS = localLeads;
       }
       populateFilterDropdowns();
+      setSalesOffer(CURRENT_OFFER);
       render();
     }
 
     async function clearAllLeads() {
       if (!confirm('Voulez-vous vraiment vider toute la liste actuelle ?')) return;
       LEADS = [];
-      localStorage.removeItem(STORAGE_KEY);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {}
       try {
         await fetch('/api/clear', { method: 'POST' });
       } catch (e) {}
@@ -922,7 +1370,7 @@ INDEX_HTML = """<!DOCTYPE html>
         showBanner('⚠️ Aucune entreprise à exporter.', true);
         return;
       }
-      const headers = ['Nom', 'Ville', 'Quartier', 'Secteur', 'Telephone', 'Type_Tel', 'Statut_Digital', 'Score', 'Site_Web', 'Facebook', 'Google_Maps', 'Problemes'];
+      const headers = ['Nom', 'Ville', 'Quartier', 'Secteur', 'Telephone', 'Type_Tel', 'Statut_Digital', 'Statut_CRM', 'Score', 'Site_Web', 'Facebook', 'Google_Maps', 'Problemes'];
       const rows = LEADS.map(b => [
         b.name || '',
         b.city || '',
@@ -931,6 +1379,7 @@ INDEX_HTML = """<!DOCTYPE html>
         b.phone || '',
         b.phone_type || '',
         b.status || '',
+        b.crm_status || 'A_CONTACTER',
         b.score || 0,
         b.website || '',
         b.facebook_url || '',
@@ -1023,6 +1472,7 @@ INDEX_HTML = """<!DOCTYPE html>
       updateKPIs();
       const q = document.getElementById('searchInput').value.toLowerCase().trim();
       const cf = document.getElementById('cityFilter').value || 'ALL';
+      const crmf = document.getElementById('crmFilter').value || 'ALL';
       const st = document.getElementById('statusFilter').value || 'ALL';
       const sec = document.getElementById('sectorFilter').value || 'ALL';
       const pf = document.getElementById('phoneFilter').value || 'ALL';
@@ -1032,6 +1482,9 @@ INDEX_HTML = """<!DOCTYPE html>
 
       const filtered = LEADS.filter(item => {
         if (cf !== 'ALL' && item.city !== cf) {
+          return false;
+        }
+        if (crmf !== 'ALL' && (item.crm_status || 'A_CONTACTER') !== crmf) {
           return false;
         }
         if (st === 'HAS_FACEBOOK') {
@@ -1051,6 +1504,7 @@ INDEX_HTML = """<!DOCTYPE html>
             item.neighborhood + ' ' +
             item.sector + ' ' +
             item.phone + ' ' +
+            (item.crm_status || 'A_CONTACTER') + ' ' +
             (item.website || '') + ' ' +
             (item.facebook_url || '') + ' ' +
             (item.issues || []).join(' ')
@@ -1079,7 +1533,7 @@ INDEX_HTML = """<!DOCTYPE html>
         const fullUrl = b.website ? (b.website.startsWith('http') ? b.website : 'http://' + b.website) : '';
         const domainText = b.website ? shortDomain(b.website) : 'Aucun site';
         const siteHtml = b.website
-          ? `<a href="${fullUrl}" target="_blank">🌐 ${domainText}</a>`
+          ? `<a href="${fullUrl}" target="_blank">🌐 ${escapeHtml(domainText)}</a>`
           : '<span>🌐 Aucun site</span>';
 
         const speedTag = b.response_ms ? ` • ${b.response_ms}ms` : '';
@@ -1087,25 +1541,56 @@ INDEX_HTML = """<!DOCTYPE html>
           ? '<span class="phone-badge ph-MOBILE_WHATSAPP">📱 Mobile</span>'
           : (b.phone_type === 'FIXE_ONATEL' ? '<span class="phone-badge ph-FIXE_ONATEL">☎️ Fixe</span>' : '');
 
-        const contactBtn = b.whatsapp_url
-          ? `<a class="btn btn-wa" href="${b.whatsapp_url}" target="_blank">💬 WhatsApp</a>`
+        const pixelBadge = b.has_fb_pixel
+          ? '<span class="status-pill tag-pixel">🎯 Pixel Meta</span>'
+          : '';
+        const gaBadge = b.has_google_analytics
+          ? '<span class="status-pill tag-analytics">📊 Google Analytics</span>'
+          : '';
+
+        const currentPitch = generatePitch(b, CURRENT_OFFER);
+        b.pitch = currentPitch;
+
+        let dynamicWaUrl = '';
+        if (b.phone_type === 'MOBILE_WHATSAPP' && b.phone && b.phone !== 'Non renseigné') {
+          const digits = b.phone.replace(/[^0-9]/g, '');
+          if (digits) {
+            dynamicWaUrl = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(currentPitch);
+            b.whatsapp_url = dynamicWaUrl;
+          }
+        }
+
+        const contactBtn = dynamicWaUrl
+          ? `<a class="btn btn-wa" href="${dynamicWaUrl}" target="_blank">💬 WhatsApp</a>`
           : (b.tel_url ? `<a class="btn btn-call" href="${b.tel_url}">📞 Appeler</a>` : '');
 
         const fbBtn = b.facebook_url
           ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Facebook</a>`
           : '';
 
-        const copyBtn = !b.whatsapp_url
-          ? `<button class="btn btn-copy" onclick="navigator.clipboard.writeText(${JSON.stringify(b.pitch).replace(/"/g, '&quot;')}); this.textContent='✅ Copié !'; setTimeout(()=>this.textContent='📋 Copier Pitch', 1500);">📋 Copier Pitch</button>`
-          : '';
+        const copyBtn = `<button class="btn btn-copy" onclick="copyPitchText(this, decodeURIComponent('${safeAttrEnc(currentPitch)}'))">📋 Copier Pitch</button>`;
 
         const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.name + ' ' + (b.city && b.city !== 'Audit Direct' ? b.city : 'Burkina Faso'))}`;
         const mapsBtn = `<a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>`;
 
         const shortSector = SECTOR_LABELS[b.sector_key] || b.sector;
 
+        const crmStatus = b.crm_status || 'A_CONTACTER';
+        const cardClass = crmStatus === 'IGNORE' ? 'lead-card crm-state-IGNORE' : 'lead-card';
+        const encName = safeAttrEnc(b.name || '');
+        const encCity = safeAttrEnc(b.city || '');
+
+        const crmBarHtml = `
+          <div class="crm-bar" role="group" aria-label="Statut CRM">
+            <button type="button" class="crm-pill crm-a-contacter ${crmStatus === 'A_CONTACTER' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'A_CONTACTER', decodeURIComponent('${encCity}'))">⚪ À contacter</button>
+            <button type="button" class="crm-pill crm-contacte ${crmStatus === 'CONTACTE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">🟡 Contacté</button>
+            <button type="button" class="crm-pill crm-client ${crmStatus === 'CLIENT' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">🟢 RDV / Client</button>
+            <button type="button" class="crm-pill crm-ignore ${crmStatus === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">🔴 Ignorer</button>
+          </div>
+        `;
+
         return `
-          <div class="lead-card">
+          <div class="${cardClass}">
             <div>
               <div class="card-top">
                 <div class="score-badge">
@@ -1113,27 +1598,31 @@ INDEX_HTML = """<!DOCTYPE html>
                   <span class="score-lbl">Score</span>
                 </div>
                 <div class="title-wrap">
-                  <span class="biz-name">${b.name}</span>
+                  <span class="biz-name">${escapeHtml(b.name)}</span>
                   <div class="badges-row">
                     <span class="status-pill st-${b.status}">${b.status.replace('_', ' ')}${speedTag}</span>
                     ${phoneLabel}
+                    ${pixelBadge}
+                    ${gaBadge}
                   </div>
                 </div>
               </div>
 
+              ${crmBarHtml}
+
               <div class="meta-chips">
-                <span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${b.city} (${b.neighborhood})</a></span>
-                <span class="meta-item">${shortSector}</span>
-                <span class="meta-item">📞 <strong>${b.phone}</strong></span>
+                <span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${escapeHtml(b.city)} (${escapeHtml(b.neighborhood)})</a></span>
+                <span class="meta-item">${escapeHtml(shortSector)}</span>
+                <span class="meta-item">📞 <strong>${escapeHtml(b.phone)}</strong></span>
                 <span class="meta-item">${siteHtml}</span>
               </div>
 
               <div class="issues">
-                ${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${iss}</span>`).join('')}
+                ${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${escapeHtml(iss)}</span>`).join('')}
               </div>
 
               <div class="pitch-box">
-                <strong>Pitch :</strong> ${b.pitch}
+                <strong>Pitch (${escapeHtml(CURRENT_OFFER)}) :</strong> ${escapeHtml(currentPitch)}
               </div>
             </div>
 
@@ -1150,6 +1639,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     document.getElementById('searchInput').addEventListener('input', render);
     document.getElementById('cityFilter').addEventListener('change', render);
+    document.getElementById('crmFilter').addEventListener('change', render);
     document.getElementById('statusFilter').addEventListener('change', render);
     document.getElementById('sectorFilter').addEventListener('change', render);
     document.getElementById('phoneFilter').addEventListener('change', render);
@@ -1188,7 +1678,56 @@ class ProspectHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length", "0"))
-        body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+
+        if parsed.path in ("/api/leads/status", "/api/leads/crm"):
+            VALID_CRM_STATUSES = {"A_CONTACTER", "CONTACTE", "CLIENT", "IGNORE"}
+            name = str(body.get("name", "") or "").strip()
+            city = str(body.get("city", "") or "").strip()
+            new_status = body.get("crm_status")
+
+            if not name or not city:
+                self._send_json({"error": "Nom et ville requis"}, status=400)
+                return
+
+            if not isinstance(new_status, str) or new_status not in VALID_CRM_STATUSES:
+                self._send_json({"error": f"Statut CRM invalide: {new_status}"}, status=400)
+                return
+
+            with STATE_LOCK:
+                current = load_saved_leads()
+                norm_name = name.lower()
+                norm_city = city.lower()
+                matched = False
+                for lead in current:
+                    l_name = str(lead.get("name", "")).strip().lower()
+                    l_city = str(lead.get("city", "")).strip().lower()
+                    if l_name == norm_name and (l_city == norm_city or not l_city or not norm_city):
+                        lead["crm_status"] = new_status
+                        matched = True
+                        break
+                if not matched:
+                    from urllib.parse import quote_plus
+                    loc = city if city != "Audit Direct" else "Burkina Faso"
+                    q = quote_plus(f"{name} {loc}".strip())
+                    new_lead = {
+                        "name": name,
+                        "city": city,
+                        "crm_status": new_status,
+                        "has_fb_pixel": False,
+                        "has_google_analytics": False,
+                        "maps_url": f"https://www.google.com/maps/search/?api=1&query={q}",
+                    }
+                    current.append(new_lead)
+                save_leads(current)
+
+            self._send_json({"ok": True, "name": name, "city": city, "crm_status": new_status})
+            return
 
         if parsed.path == "/api/clear":
             save_leads([])
@@ -1196,11 +1735,11 @@ class ProspectHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/audit-single":
-            name = body.get("name", "Entreprise").strip() or "Entreprise"
-            sector_key = body.get("sector_key", "entreprise").strip() or "entreprise"
+            name = str(body.get("name") or "Entreprise").strip() or "Entreprise"
+            sector_key = str(body.get("sector_key") or "entreprise").strip() or "entreprise"
             sector_label = SECTOR_CATEGORIES.get(sector_key, SECTOR_CATEGORIES["entreprise"])
-            website = body.get("website", "").strip()
-            phone_raw = body.get("phone", "").strip()
+            website = str(body.get("website") or "").strip()
+            phone_raw = str(body.get("phone") or "").strip()
 
             lead = BusinessLead(
                 name=name,
@@ -1219,16 +1758,20 @@ class ProspectHandler(BaseHTTPRequestHandler):
             audited = audit_single_business(lead)
             lead_dict = lead_to_dict(audited)
 
-            current = load_saved_leads()
-            merged = merge_leads(current, [lead_dict])
-            save_leads(merged)
+            with STATE_LOCK:
+                current = load_saved_leads()
+                merged = merge_leads(current, [lead_dict])
+                save_leads(merged)
             self._send_json({"lead": lead_dict})
             return
 
         if parsed.path == "/api/scan":
             city = body.get("city", "ouaga")
             sector = body.get("sector", "all")
-            limit = min(int(body.get("limit", 75)), 130)
+            try:
+                limit = min(max(1, int(body.get("limit") or 75)), 130)
+            except (ValueError, TypeError):
+                limit = 75
 
             raw_leads = fetch_osm_businesses(city_key=city, sector_filter=sector, limit=limit)
             with concurrent.futures.ThreadPoolExecutor(max_workers=14) as pool:
@@ -1241,8 +1784,9 @@ class ProspectHandler(BaseHTTPRequestHandler):
             export_csv(audited_leads, BASE_DIR / f"leads_{city}.csv")
 
             incoming_dicts = [lead_to_dict(b) for b in audited_leads]
-            merged_dicts = merge_leads(load_saved_leads(), incoming_dicts)
-            save_leads(merged_dicts)
+            with STATE_LOCK:
+                merged_dicts = merge_leads(load_saved_leads(), incoming_dicts)
+                save_leads(merged_dicts)
             self._send_json({"leads": merged_dicts})
             return
 
