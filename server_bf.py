@@ -810,6 +810,186 @@ INDEX_HTML = """<!DOCTYPE html>
       }
     }
 
+    /* Multi-Criteria Filter Chips Bar (SaaS Light Aesthetic) */
+    .chips-filter-wrapper {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chips-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chips-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .chips-group-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      appearance: none;
+      -webkit-appearance: none;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 9999px;
+      padding: 5px 12px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease-in-out;
+      user-select: none;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+
+    .filter-chip:hover {
+      border-color: #94a3b8;
+      background: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .filter-chip .chip-cnt {
+      font-size: 0.70rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .filter-chip.active {
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .filter-chip.active .chip-cnt {
+      background: rgba(0, 0, 0, 0.08);
+    }
+
+    .filter-chip.chip-web.active {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+    }
+    .filter-chip.chip-web.active .chip-cnt {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .filter-chip.chip-dead.active {
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #b91c1c;
+    }
+    .filter-chip.chip-dead.active .chip-cnt {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .filter-chip.chip-weak.active {
+      background: #fffbeb;
+      border-color: #f59e0b;
+      color: #b45309;
+    }
+    .filter-chip.chip-weak.active .chip-cnt {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .filter-chip.chip-ok.active {
+      background: #ecfdf5;
+      border-color: #10b981;
+      color: #047857;
+    }
+    .filter-chip.chip-ok.active .chip-cnt {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .filter-chip.chip-fb.active {
+      background: #faf5ff;
+      border-color: #8b5cf6;
+      color: #6d28d9;
+    }
+    .filter-chip.chip-fb.active .chip-cnt {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+
+    .filter-chip.chip-wa.active {
+      background: #ecfdf5;
+      border-color: #10b981;
+      color: #047857;
+    }
+    .filter-chip.chip-wa.active .chip-cnt {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .filter-chip.chip-fixe.active {
+      background: #f1f5f9;
+      border-color: #64748b;
+      color: #1e293b;
+    }
+    .filter-chip.chip-fixe.active .chip-cnt {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .filter-chip.chip-track.active {
+      background: #fff1f2;
+      border-color: #f43f5e;
+      color: #be123c;
+    }
+    .filter-chip.chip-track.active .chip-cnt {
+      background: #ffe4e6;
+      color: #9f1239;
+    }
+
+    .active-filters-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #15803d;
+      font-weight: 600;
+      margin-top: 4px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .filter-summary {
       font-size: 0.82rem;
       color: #475569;
@@ -2236,6 +2416,55 @@ INDEX_HTML = """<!DOCTYPE html>
           <select id="sectorFilter"></select>
           <select id="phoneFilter"></select>
         </div>
+
+        <!-- MULTI-CRITERIA INTERACTIVE CHIPS (COMBINAISONS MULTIPLES) -->
+        <div class="chips-filter-wrapper">
+          <div class="chips-group">
+            <div class="chips-group-header">
+              <span class="chips-group-title">🌐 1. Diagnostic & Site Web <small style="font-weight:600; text-transform:none; color:var(--muted);">(multi-sélection cumulable)</small></span>
+            </div>
+            <div class="chips-row">
+              <button type="button" id="chip_web_SANS_SITE" class="filter-chip chip-web" onclick="toggleWebStatusFilter('SANS_SITE')" title="Entreprises sans site web propre (avec ou sans Facebook)"><span class="chip-icon" id="icon_web_SANS_SITE">🚀</span> <span>Sans site web</span> <span class="chip-cnt" id="cnt_web_SANS_SITE">0</span></button>
+              <button type="button" id="chip_web_SITE_MORT" class="filter-chip chip-dead" onclick="toggleWebStatusFilter('SITE_MORT')" title="Site web hors-ligne, erreur serveur HTTP ou SSL expiré"><span class="chip-icon" id="icon_web_SITE_MORT">🔥</span> <span>Site mort / Erreur</span> <span class="chip-cnt" id="cnt_web_SITE_MORT">0</span></button>
+              <button type="button" id="chip_web_SITE_FAIBLE" class="filter-chip chip-weak" onclick="toggleWebStatusFilter('SITE_FAIBLE')" title="Site web lent ou sans chiffrement SSL HTTPS"><span class="chip-icon" id="icon_web_SITE_FAIBLE">⚠️</span> <span>Site lent / Faible</span> <span class="chip-cnt" id="cnt_web_SITE_FAIBLE">0</span></button>
+              <button type="button" id="chip_web_SITE_OK" class="filter-chip chip-ok" onclick="toggleWebStatusFilter('SITE_OK')" title="Site web opérationnel"><span class="chip-icon" id="icon_web_SITE_OK">✅</span> <span>Site fonctionnel OK</span> <span class="chip-cnt" id="cnt_web_SITE_OK">0</span></button>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px;">
+            <div class="chips-group">
+              <div class="chips-group-header">
+                <span class="chips-group-title">📘 2. Présence Page Facebook</span>
+              </div>
+              <div class="chips-row">
+                <button type="button" id="chip_fb_YES" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITH_FB')" title="A une page Facebook détectée"><span class="chip-icon" id="icon_fb_YES">📘</span> <span>Avec Page Facebook</span> <span class="chip-cnt" id="cnt_fb_YES">0</span></button>
+                <button type="button" id="chip_fb_NO" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITHOUT_FB')" title="Aucune page Facebook trouvée"><span class="chip-icon" id="icon_fb_NO">🚫</span> <span>Sans Facebook</span> <span class="chip-cnt" id="cnt_fb_NO">0</span></button>
+              </div>
+            </div>
+
+            <div class="chips-group">
+              <div class="chips-group-header">
+                <span class="chips-group-title">📞 3. Canal de Contact Direct</span>
+              </div>
+              <div class="chips-row">
+                <button type="button" id="chip_phone_WA" class="filter-chip chip-wa" onclick="togglePhoneTypeFilter('MOBILE_WHATSAPP')" title="Numéro mobile compatible WhatsApp direct"><span class="chip-icon" id="icon_phone_WA">💬</span> <span>WhatsApp Direct</span> <span class="chip-cnt" id="cnt_phone_WA">0</span></button>
+                <button type="button" id="chip_phone_FIXE" class="filter-chip chip-fixe" onclick="togglePhoneTypeFilter('FIXE_ONATEL')" title="Ligne fixe ONATEL"><span class="chip-icon" id="icon_phone_FIXE">☎️</span> <span>Fixe ONATEL</span> <span class="chip-cnt" id="cnt_phone_FIXE">0</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chips-group">
+            <div class="chips-group-header">
+              <span class="chips-group-title">🎯 4. Tracking & Opportunités Marketing</span>
+            </div>
+            <div class="chips-row">
+              <button type="button" id="chip_track_NO_PIXEL" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_PIXEL')" title="Pas de Pixel Facebook (cible vente Meta Ads)"><span class="chip-icon" id="icon_track_NO_PIXEL">🎯</span> <span>Sans Pixel Meta</span> <span class="chip-cnt" id="cnt_track_NO_PIXEL">0</span></button>
+              <button type="button" id="chip_track_NO_GA" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_GA')" title="Pas de Google Analytics détecté"><span class="chip-icon" id="icon_track_NO_GA">📊</span> <span>Sans Google Analytics</span> <span class="chip-cnt" id="cnt_track_NO_GA">0</span></button>
+            </div>
+          </div>
+
+          <div id="activeFiltersSummary" class="active-filters-banner"></div>
+        </div>
         <div id="radarMemoryToggleBar" class="radar-memory-toggle-bar">
           <label class="toggle-known-label" for="hideKnownLeadsToggle">
             <input type="checkbox" id="hideKnownLeadsToggle" onchange="render()" />
@@ -2946,9 +3175,21 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   function highlightActiveKpi(st) {
+    let effective = st;
+    if (!effective) {
+      if (MULTI_FILTERS.webStatuses.size === 0 && MULTI_FILTERS.facebook === 'ALL') {
+        effective = 'ALL';
+      } else if (MULTI_FILTERS.webStatuses.size === 1 && MULTI_FILTERS.webStatuses.has('SANS_SITE') && MULTI_FILTERS.facebook === 'WITH_FB') {
+        effective = 'FACEBOOK_SEUL';
+      } else if (MULTI_FILTERS.webStatuses.size === 1 && MULTI_FILTERS.facebook === 'ALL') {
+        effective = Array.from(MULTI_FILTERS.webStatuses)[0];
+      } else {
+        effective = '';
+      }
+    }
     ['ALL', 'SITE_MORT', 'FACEBOOK_SEUL', 'SITE_FAIBLE', 'SANS_SITE'].forEach(k => {
       const el = document.getElementById('kpiCard_' + k);
-      if (el) el.classList.toggle('active-kpi', k === st);
+      if (el) el.classList.toggle('active-kpi', k === effective);
     });
   }
 
@@ -2960,8 +3201,228 @@ INDEX_HTML = """<!DOCTYPE html>
     });
   }
 
+  const MULTI_FILTERS = {
+    webStatuses: new Set(),
+    facebook: 'ALL', // 'ALL' | 'WITH_FB' | 'WITHOUT_FB'
+    phoneTypes: new Set(),
+    tracking: new Set(), // 'NO_PIXEL' | 'NO_GA'
+  };
+
+  function leadHasDedicatedWebsite(b) {
+    if (!b) return false;
+    if (b.status === 'SANS_SITE' || b.status === 'FACEBOOK_SEUL') return false;
+    if (!b.website) return false;
+    const low = b.website.toLowerCase();
+    if (low.includes('facebook.com') || low.includes('fb.com')) return false;
+    return true;
+  }
+
+  function leadHasFacebook(b) {
+    if (!b) return false;
+    if (b.facebook_url && b.facebook_url.trim()) return true;
+    if (b.status === 'FACEBOOK_SEUL') return true;
+    if (b.website && (b.website.toLowerCase().includes('facebook.com') || b.website.toLowerCase().includes('fb.com'))) return true;
+    return false;
+  }
+
+  function toggleWebStatusFilter(st) {
+    if (MULTI_FILTERS.webStatuses.has(st)) {
+      MULTI_FILTERS.webStatuses.delete(st);
+    } else {
+      MULTI_FILTERS.webStatuses.add(st);
+    }
+    syncDropdownsFromMulti();
+    render();
+  }
+
+  function toggleFacebookFilter(fbType) {
+    if (MULTI_FILTERS.facebook === fbType) {
+      MULTI_FILTERS.facebook = 'ALL';
+    } else {
+      MULTI_FILTERS.facebook = fbType;
+    }
+    syncDropdownsFromMulti();
+    render();
+  }
+
+  function togglePhoneTypeFilter(pt) {
+    if (MULTI_FILTERS.phoneTypes.has(pt)) {
+      MULTI_FILTERS.phoneTypes.delete(pt);
+    } else {
+      MULTI_FILTERS.phoneTypes.add(pt);
+    }
+    syncDropdownsFromMulti();
+    render();
+  }
+
+  function toggleTrackingFilter(tr) {
+    if (MULTI_FILTERS.tracking.has(tr)) {
+      MULTI_FILTERS.tracking.delete(tr);
+    } else {
+      MULTI_FILTERS.tracking.add(tr);
+    }
+    syncDropdownsFromMulti();
+    render();
+  }
+
+  function clearMultiFilters() {
+    MULTI_FILTERS.webStatuses.clear();
+    MULTI_FILTERS.facebook = 'ALL';
+    MULTI_FILTERS.phoneTypes.clear();
+    MULTI_FILTERS.tracking.clear();
+    const statusEl = document.getElementById('statusFilter');
+    if (statusEl) statusEl.value = 'ALL';
+    const phoneEl = document.getElementById('phoneFilter');
+    if (phoneEl) phoneEl.value = 'ALL';
+  }
+
+  function syncDropdownsFromMulti() {
+    const statusEl = document.getElementById('statusFilter');
+    if (statusEl) {
+      if (MULTI_FILTERS.webStatuses.size === 0 && MULTI_FILTERS.facebook === 'ALL') {
+        statusEl.value = 'ALL';
+      } else if (MULTI_FILTERS.webStatuses.size === 1 && MULTI_FILTERS.webStatuses.has('SANS_SITE') && MULTI_FILTERS.facebook === 'WITH_FB') {
+        statusEl.value = 'FACEBOOK_SEUL';
+      } else if (MULTI_FILTERS.webStatuses.size === 0 && MULTI_FILTERS.facebook === 'WITH_FB') {
+        statusEl.value = 'HAS_FACEBOOK';
+      } else if (MULTI_FILTERS.webStatuses.size === 1 && MULTI_FILTERS.facebook === 'ALL') {
+        const only = Array.from(MULTI_FILTERS.webStatuses)[0];
+        statusEl.value = only;
+      } else {
+        statusEl.value = 'CUSTOM';
+      }
+    }
+
+    const phoneEl = document.getElementById('phoneFilter');
+    if (phoneEl) {
+      if (MULTI_FILTERS.phoneTypes.size === 1) {
+        phoneEl.value = Array.from(MULTI_FILTERS.phoneTypes)[0];
+      } else {
+        phoneEl.value = 'ALL';
+      }
+    }
+  }
+
+  function updateFilterChipsUI() {
+    ['SANS_SITE', 'SITE_MORT', 'SITE_FAIBLE', 'SITE_OK'].forEach(st => {
+      const el = document.getElementById('chip_web_' + st);
+      if (!el) return;
+      const isActive = MULTI_FILTERS.webStatuses.has(st);
+      el.classList.toggle('active', isActive);
+      const icon = document.getElementById('icon_web_' + st);
+      if (icon) {
+        icon.textContent = isActive ? '✓' : (st === 'SANS_SITE' ? '🚀' : (st === 'SITE_MORT' ? '🔥' : (st === 'SITE_FAIBLE' ? '⚠️' : '✅')));
+      }
+    });
+
+    const fbYesEl = document.getElementById('chip_fb_YES');
+    if (fbYesEl) {
+      const isYes = MULTI_FILTERS.facebook === 'WITH_FB';
+      fbYesEl.classList.toggle('active', isYes);
+      const icon = document.getElementById('icon_fb_YES');
+      if (icon) icon.textContent = isYes ? '✓' : '📘';
+    }
+    const fbNoEl = document.getElementById('chip_fb_NO');
+    if (fbNoEl) {
+      const isNo = MULTI_FILTERS.facebook === 'WITHOUT_FB';
+      fbNoEl.classList.toggle('active', isNo);
+      const icon = document.getElementById('icon_fb_NO');
+      if (icon) icon.textContent = isNo ? '✓' : '🚫';
+    }
+
+    const phWaEl = document.getElementById('chip_phone_WA');
+    if (phWaEl) {
+      const isWa = MULTI_FILTERS.phoneTypes.has('MOBILE_WHATSAPP');
+      phWaEl.classList.toggle('active', isWa);
+      const icon = document.getElementById('icon_phone_WA');
+      if (icon) icon.textContent = isWa ? '✓' : '💬';
+    }
+    const phFixEl = document.getElementById('chip_phone_FIXE');
+    if (phFixEl) {
+      const isFix = MULTI_FILTERS.phoneTypes.has('FIXE_ONATEL');
+      phFixEl.classList.toggle('active', isFix);
+      const icon = document.getElementById('icon_phone_FIXE');
+      if (icon) icon.textContent = isFix ? '✓' : '☎️';
+    }
+
+    const trPixEl = document.getElementById('chip_track_NO_PIXEL');
+    if (trPixEl) {
+      const isNoPix = MULTI_FILTERS.tracking.has('NO_PIXEL');
+      trPixEl.classList.toggle('active', isNoPix);
+      const icon = document.getElementById('icon_track_NO_PIXEL');
+      if (icon) icon.textContent = isNoPix ? '✓' : '🎯';
+    }
+    const trGaEl = document.getElementById('chip_track_NO_GA');
+    if (trGaEl) {
+      const isNoGa = MULTI_FILTERS.tracking.has('NO_GA');
+      trGaEl.classList.toggle('active', isNoGa);
+      const icon = document.getElementById('icon_track_NO_GA');
+      if (icon) icon.textContent = isNoGa ? '✓' : '📊';
+    }
+
+    const setCnt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+    setCnt('cnt_web_SANS_SITE', LEADS.filter(b => !leadHasDedicatedWebsite(b)).length);
+    setCnt('cnt_web_SITE_MORT', LEADS.filter(b => b.status === 'SITE_MORT').length);
+    setCnt('cnt_web_SITE_FAIBLE', LEADS.filter(b => b.status === 'SITE_FAIBLE').length);
+    setCnt('cnt_web_SITE_OK', LEADS.filter(b => b.status === 'SITE_OK').length);
+    setCnt('cnt_fb_YES', LEADS.filter(leadHasFacebook).length);
+    setCnt('cnt_fb_NO', LEADS.filter(b => !leadHasFacebook(b)).length);
+    setCnt('cnt_phone_WA', LEADS.filter(b => b.phone_type === 'MOBILE_WHATSAPP').length);
+    setCnt('cnt_phone_FIXE', LEADS.filter(b => b.phone_type === 'FIXE_ONATEL').length);
+    setCnt('cnt_track_NO_PIXEL', LEADS.filter(b => !b.has_fb_pixel).length);
+    setCnt('cnt_track_NO_GA', LEADS.filter(b => !b.has_google_analytics).length);
+
+    const activeSummaryEl = document.getElementById('activeFiltersSummary');
+    if (activeSummaryEl) {
+      const badges = [];
+      if (MULTI_FILTERS.webStatuses.has('SANS_SITE')) badges.push('🚀 Sans site web');
+      if (MULTI_FILTERS.webStatuses.has('SITE_MORT')) badges.push('🔥 Site mort');
+      if (MULTI_FILTERS.webStatuses.has('SITE_FAIBLE')) badges.push('⚠️ Site faible');
+      if (MULTI_FILTERS.webStatuses.has('SITE_OK')) badges.push('✅ Site OK');
+      if (MULTI_FILTERS.facebook === 'WITH_FB') badges.push('📘 Avec Page Facebook');
+      if (MULTI_FILTERS.facebook === 'WITHOUT_FB') badges.push('🚫 Sans Facebook');
+      if (MULTI_FILTERS.phoneTypes.has('MOBILE_WHATSAPP')) badges.push('💬 WhatsApp direct');
+      if (MULTI_FILTERS.phoneTypes.has('FIXE_ONATEL')) badges.push('☎️ Fixe ONATEL');
+      if (MULTI_FILTERS.tracking.has('NO_PIXEL')) badges.push('🎯 Sans Pixel Meta');
+      if (MULTI_FILTERS.tracking.has('NO_GA')) badges.push('📊 Sans Google Analytics');
+
+      if (badges.length > 0) {
+        activeSummaryEl.style.display = 'flex';
+        activeSummaryEl.innerHTML = `<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">` +
+          `<span>⚡ <strong>${badges.length} critère(s) combiné(s) actif(s) :</strong></span>` +
+          badges.map(b => `<span class="status-pill" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.72rem; padding:2px 8px;">${b}</span>`).join(' ') +
+          `</div>` +
+          `<button type="button" class="btn btn-reset" style="width:auto; padding:3px 10px; font-size:0.72rem; min-height:26px; border-color:#86efac; color:#166534;" onclick="clearMultiFilters(); render();">✕ Effacer les critères</button>`;
+      } else {
+        activeSummaryEl.style.display = 'none';
+      }
+    }
+  }
+
   function quickFilterStatus(st) {
-    document.getElementById('statusFilter').value = st;
+    if (st === 'ALL') {
+      clearMultiFilters();
+    } else if (st === 'FACEBOOK_SEUL') {
+      MULTI_FILTERS.webStatuses.clear();
+      MULTI_FILTERS.webStatuses.add('SANS_SITE');
+      MULTI_FILTERS.facebook = 'WITH_FB';
+    } else if (st === 'HAS_FACEBOOK') {
+      MULTI_FILTERS.webStatuses.clear();
+      MULTI_FILTERS.facebook = 'WITH_FB';
+    } else if (st === 'SANS_SITE') {
+      MULTI_FILTERS.webStatuses.clear();
+      MULTI_FILTERS.webStatuses.add('SANS_SITE');
+      MULTI_FILTERS.facebook = 'ALL';
+    } else {
+      MULTI_FILTERS.webStatuses.clear();
+      MULTI_FILTERS.webStatuses.add(st);
+      MULTI_FILTERS.facebook = 'ALL';
+    }
+    const statusEl = document.getElementById('statusFilter');
+    if (statusEl) statusEl.value = st;
     highlightActiveKpi(st);
     render();
   }
@@ -2977,11 +3438,10 @@ INDEX_HTML = """<!DOCTYPE html>
     document.getElementById('searchInput').value = '';
     document.getElementById('cityFilter').value = 'ALL';
     document.getElementById('crmFilter').value = 'ALL';
-    document.getElementById('statusFilter').value = 'ALL';
     document.getElementById('sectorFilter').value = 'ALL';
-    document.getElementById('phoneFilter').value = 'ALL';
     const hideToggle = document.getElementById('hideKnownLeadsToggle');
     if (hideToggle) hideToggle.checked = false;
+    clearMultiFilters();
     highlightActiveKpi('ALL');
     highlightActiveCrmStage('ALL');
     render();
@@ -3035,7 +3495,7 @@ INDEX_HTML = """<!DOCTYPE html>
     const countStatus = (st) => LEADS.filter(b => b.status === st).length;
     const countHasFb = LEADS.filter(b => Boolean(b.facebook_url)).length;
 
-    statusEl.innerHTML = `<option value="ALL">📊 Tous (${LEADS.length})</option><option value="SITE_MORT">🔥 Cassés (${countStatus('SITE_MORT')})</option><option value="FACEBOOK_SEUL">📱 FB Seul (${countStatus('FACEBOOK_SEUL')})</option><option value="HAS_FACEBOOK">📘 Avec FB (${countHasFb})</option><option value="SITE_FAIBLE">⚠️ Lents/Sans SSL (${countStatus('SITE_FAIBLE')})</option><option value="SANS_SITE">🚀 Sans site (${countStatus('SANS_SITE')})</option><option value="SITE_OK">✅ OK (${countStatus('SITE_OK')})</option>`;
+    statusEl.innerHTML = `<option value="ALL">📊 Tous (${LEADS.length})</option><option value="CUSTOM">⚡ Filtres combinés</option><option value="SITE_MORT">🔥 Cassés (${countStatus('SITE_MORT')})</option><option value="FACEBOOK_SEUL">📱 FB Seul (${countStatus('FACEBOOK_SEUL')})</option><option value="HAS_FACEBOOK">📘 Avec FB (${countHasFb})</option><option value="SITE_FAIBLE">⚠️ Lents/Sans SSL (${countStatus('SITE_FAIBLE')})</option><option value="SANS_SITE">🚀 Sans site (${countStatus('SANS_SITE')})</option><option value="SITE_OK">✅ OK (${countStatus('SITE_OK')})</option>`;
     statusEl.value = curStatus;
 
     let sectorHtml = `<option value="ALL">🏢 Tous secteurs (${LEADS.length})</option>`;
@@ -3502,17 +3962,16 @@ INDEX_HTML = """<!DOCTYPE html>
 
   function render() {
     updateKPIs();
+    updateFilterChipsUI();
     const q = document.getElementById('searchInput').value.toLowerCase().trim();
     const cf = document.getElementById('cityFilter').value || 'ALL';
     const crmf = document.getElementById('crmFilter').value || 'ALL';
-    const st = document.getElementById('statusFilter').value || 'ALL';
     const sec = document.getElementById('sectorFilter').value || 'ALL';
-    const pf = document.getElementById('phoneFilter').value || 'ALL';
     const hideKnownEl = document.getElementById('hideKnownLeadsToggle');
     const hideKnown = Boolean(hideKnownEl && hideKnownEl.checked && CURRENT_VIEW !== 'crm');
     const container = document.getElementById('leadContainer');
 
-    highlightActiveKpi(st);
+    highlightActiveKpi();
     highlightActiveCrmStage(crmf);
 
     const filtered = LEADS.filter(item => {
@@ -3534,11 +3993,42 @@ INDEX_HTML = """<!DOCTYPE html>
           if (!inPipe || stageGroup !== targetGroup) return false;
         }
       }
-      if (st === 'HAS_FACEBOOK') {
-        if (!item.facebook_url) return false;
-      } else if (st !== 'ALL' && item.status !== st) return false;
       if (sec !== 'ALL' && getLeadSectorKey(item) !== sec) return false;
-      if (pf !== 'ALL' && item.phone_type !== pf) return false;
+
+      // Multi-criteria: Web presence / Audit status facet
+      if (MULTI_FILTERS.webStatuses.size > 0) {
+        let matchWeb = false;
+        if (MULTI_FILTERS.webStatuses.has('SANS_SITE') && !leadHasDedicatedWebsite(item)) {
+          matchWeb = true;
+        }
+        if (MULTI_FILTERS.webStatuses.has('SITE_MORT') && item.status === 'SITE_MORT') {
+          matchWeb = true;
+        }
+        if (MULTI_FILTERS.webStatuses.has('SITE_FAIBLE') && item.status === 'SITE_FAIBLE') {
+          matchWeb = true;
+        }
+        if (MULTI_FILTERS.webStatuses.has('SITE_OK') && item.status === 'SITE_OK') {
+          matchWeb = true;
+        }
+        if (!matchWeb) return false;
+      }
+
+      // Multi-criteria: Facebook presence facet
+      if (MULTI_FILTERS.facebook === 'WITH_FB') {
+        if (!leadHasFacebook(item)) return false;
+      } else if (MULTI_FILTERS.facebook === 'WITHOUT_FB') {
+        if (leadHasFacebook(item)) return false;
+      }
+
+      // Multi-criteria: Phone channel facet
+      if (MULTI_FILTERS.phoneTypes.size > 0) {
+        if (!MULTI_FILTERS.phoneTypes.has(item.phone_type)) return false;
+      }
+
+      // Multi-criteria: Tracking & Pixels facet
+      if (MULTI_FILTERS.tracking.has('NO_PIXEL') && item.has_fb_pixel) return false;
+      if (MULTI_FILTERS.tracking.has('NO_GA') && item.has_google_analytics) return false;
+
       if (q) {
         const hay = (
           item.name + ' ' + item.neighborhood + ' ' + item.sector + ' ' + item.phone + ' ' +
@@ -3638,9 +4128,16 @@ INDEX_HTML = """<!DOCTYPE html>
   document.getElementById('searchInput').addEventListener('input', render);
   document.getElementById('cityFilter').addEventListener('change', render);
   document.getElementById('crmFilter').addEventListener('change', render);
-  document.getElementById('statusFilter').addEventListener('change', render);
+  document.getElementById('statusFilter').addEventListener('change', () => {
+    quickFilterStatus(document.getElementById('statusFilter').value);
+  });
   document.getElementById('sectorFilter').addEventListener('change', render);
-  document.getElementById('phoneFilter').addEventListener('change', render);
+  document.getElementById('phoneFilter').addEventListener('change', () => {
+    const v = document.getElementById('phoneFilter').value;
+    MULTI_FILTERS.phoneTypes.clear();
+    if (v !== 'ALL') MULTI_FILTERS.phoneTypes.add(v);
+    render();
+  });
 
   ['voss', 'diagnostic', 'reciprocity', 'social_proof'].forEach(a => {
     const el = document.getElementById('topAngle_' + a);
