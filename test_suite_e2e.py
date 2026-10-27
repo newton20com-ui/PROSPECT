@@ -1509,9 +1509,13 @@ class Tier4RealWorldWorkloadsTests(unittest.TestCase):
                 chk = subprocess.run([node_bin, "--check", str(js_file)], capture_output=True, text=True)
                 self.assertEqual(chk.returncode, 0, f"Frontend JS syntax error: {chk.stderr}")
 
-                # Execute dedupeAndSortLeads in a mocked DOM context
+                # Execute dedupeAndSortLeads and render() view-switching in a mocked DOM context
                 harness_js = (
-                    "const document = { getElementById: () => ({ addEventListener: () => {}, setAttribute: () => {}, classList: { toggle: () => {}, add: () => {}, remove: () => {} }, style: {}, value: 'ALL', innerHTML: '', textContent: '' }) };\n"
+                    "const _els = {};\n"
+                    "const document = { getElementById: (id) => {\n"
+                    "  if (!_els[id]) _els[id] = { id, addEventListener: () => {}, setAttribute: () => {}, classList: { toggle: () => {}, add: () => {}, remove: () => {} }, style: {}, value: (id === 'searchInput' ? '' : 'ALL'), checked: false, innerHTML: '', textContent: '' };\n"
+                    "  return _els[id];\n"
+                    "} };\n"
                     "const localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };\n"
                     "const window = { addEventListener: () => {}, scrollTo: () => {} };\n"
                     "const fetch = async () => ({ json: async () => ({ leads: [] }) });\n"
@@ -1520,11 +1524,23 @@ class Tier4RealWorldWorkloadsTests(unittest.TestCase):
                     + json.dumps(older_state + newer_update)
                     + ");\n"
                     + "if (out[0].crm_status !== 'A_CONTACTER' || out[0].rdv_done !== false || out[0].deal_amount !== 0 || out[0].notes !== '') { process.exit(2); }\n"
+                    + "LEADS = [{ name: 'Test Radar Co', city: 'Ouagadougou', neighborhood: 'Koulouba', sector: 'Commerce', sector_key: 'commerce', phone: '+226 70 11 22 33', phone_type: 'MOBILE_WHATSAPP', status: 'SANS_SITE', crm_status: 'A_CONTACTER', in_pipeline: false, score: 90, issues: ['Aucun site web'] }];\n"
+                    + "switchAppView('scanner');\n"
+                    + "const radarHtml = document.getElementById('leadContainer').innerHTML;\n"
+                    + "if (radarHtml.includes('pitch-box') || radarHtml.includes('btn-copy')) { console.error('Radar card should not contain pitch-box or btn-copy'); process.exit(3); }\n"
+                    + "if (!radarHtml.includes('btn-wa') || !radarHtml.includes('btn-add-pipeline') || !LEADS[0].pitch || !LEADS[0].whatsapp_url) { console.error('Radar card missing btn-wa, btn-add-pipeline, pitch, or whatsapp_url'); process.exit(4); }\n"
+                    + "LEADS[0].in_pipeline = true;\n"
+                    + "switchAppView('crm');\n"
+                    + "const crmHtml = document.getElementById('leadContainer').innerHTML;\n"
+                    + "if (!crmHtml.includes('pitch-box') || !crmHtml.includes('btn-copy') || !crmHtml.includes('pipeline-stage-box')) { console.error('CRM card missing pitch-box, btn-copy, or pipeline-stage-box'); process.exit(5); }\n"
+                    + "switchAppView('all');\n"
+                    + "const allHtml = document.getElementById('leadContainer').innerHTML;\n"
+                    + "if (allHtml.includes('pitch-box') || allHtml.includes('btn-copy') || !allHtml.includes('pipeline-memory-banner')) { console.error('All/Radar view with pipeline lead should show memory banner without pitch-box/btn-copy'); process.exit(6); }\n"
                 )
                 harness_file = Path(self.temp_dir) / "harness_ui.js"
                 harness_file.write_text(harness_js, encoding="utf-8")
                 run_js = subprocess.run([node_bin, str(harness_file)], capture_output=True, text=True)
-                self.assertEqual(run_js.returncode, 0, f"Frontend dedupeAndSortLeads execution failed: {run_js.stderr}")
+                self.assertEqual(run_js.returncode, 0, f"Frontend execution failed ({run_js.returncode}): {run_js.stderr}")
         finally:
             server.stop()
 
