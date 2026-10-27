@@ -116,6 +116,11 @@ class BusinessLead:
     has_fb_pixel: bool = False
     has_google_analytics: bool = False
     crm_status: str = "A_CONTACTER"
+    in_pipeline: bool = False
+    rdv_done: bool = False
+    deal_amount: int = 0
+    notes: str = ""
+    updated_at: str = ""
     issues: list[str] = field(default_factory=list)
     lead_score: int = 0
     pitch_angle: str = ""
@@ -855,11 +860,16 @@ def export_csv(leads: list[BusinessLead], output_path: Path) -> None:
             "Score (/100)",
             "Statut Digital",
             "Statut CRM",
+            "Dans Pipeline",
+            "RDV Fait",
+            "Montant Deal (FCFA)",
+            "Notes CRM",
             "Entreprise",
             "Secteur",
             "Ville",
             "Quartier",
             "Téléphone (+226)",
+            "Email",
             "Site Web",
             "Page Facebook",
             "Temps (ms)",
@@ -872,11 +882,16 @@ def export_csv(leads: list[BusinessLead], output_path: Path) -> None:
                 b.lead_score,
                 b.audit_status,
                 getattr(b, "crm_status", "A_CONTACTER"),
+                "OUI" if getattr(b, "in_pipeline", False) else "NON",
+                "OUI" if getattr(b, "rdv_done", False) else "NON",
+                getattr(b, "deal_amount", 0) or 0,
+                getattr(b, "notes", "") or "",
                 b.name,
                 b.sector,
                 b.city,
                 b.neighborhood,
                 b.phone_clean or b.phone_raw,
+                getattr(b, "email", "") or "",
                 b.website,
                 b.facebook_url,
                 b.response_ms or "",

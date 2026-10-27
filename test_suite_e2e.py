@@ -1318,6 +1318,118 @@ class Tier4RealWorldWorkloadsTests(unittest.TestCase):
         finally:
             server.stop()
 
+    def test_t4_03_six_stage_pipeline_rdv_done_livre_paye_fcfa_and_notes(self):
+        """
+        T4.3: End-to-end 6-stage commercial pipeline workflow:
+          1. Scan produces untriaged lead (in_pipeline=False).
+          2. User clicks '➕ Mettre dans À contacter' -> in_pipeline=True, crm_status='A_CONTACTER'.
+          3. User marks as 'CONTACTE', then 'RDV'/'CLIENT', toggles 'rdv_done=True', sets deal_amount=125000 FCFA & notes.
+          4. User progresses lead to 'LIVRE' and finally 'PAYE'.
+          5. Re-scanning the city preserves PAYE, in_pipeline=True, rdv_done=True, deal_amount=125000, and notes.
+        """
+        server = EphemeralMockServer(server_bf.ProspectHandler).start()
+        try:
+            initial_scan = [
+                {
+                    "name": "Clinique Suka Ouaga",
+                    "city": "Ouagadougou",
+                    "crm_status": "A_CONTACTER",
+                    "in_pipeline": False,
+                    "score": 88,
+                    "phone_type": "MOBILE_WHATSAPP",
+                }
+            ]
+            server_bf.save_leads(initial_scan)
+            status_url = f"{server.base_url}/api/leads/status"
+
+            # 1. Add to pipeline (À contacter)
+            st, r, _ = make_request(
+                status_url,
+                method="POST",
+                data={"name": "Clinique Suka Ouaga", "city": "Ouagadougou", "crm_status": "A_CONTACTER", "in_pipeline": True},
+            )
+            self.assertEqual(st, 200)
+            self.assertTrue(r.get("in_pipeline"))
+            self.assertEqual(r.get("crm_status"), "A_CONTACTER")
+
+            # 2. Mark as CONTACTE
+            st, r, _ = make_request(
+                status_url,
+                method="POST",
+                data={"name": "Clinique Suka Ouaga", "city": "Ouagadougou", "crm_status": "CONTACTE"},
+            )
+            self.assertEqual(st, 200)
+            self.assertEqual(r.get("crm_status"), "CONTACTE")
+
+            # 3. Book RDV + mark rdv_done + set deal_amount (FCFA) and notes
+            st, r, _ = make_request(
+                status_url,
+                method="POST",
+                data={
+                    "name": "Clinique Suka Ouaga",
+                    "city": "Ouagadougou",
+                    "crm_status": "CLIENT",
+                    "rdv_done": True,
+                    "deal_amount": 125000,
+                    "notes": "RDV fait avec le directeur, contrat site + pixel validé",
+                },
+            )
+            self.assertEqual(st, 200)
+            self.assertTrue(r.get("rdv_done"))
+            self.assertEqual(r.get("deal_amount"), 125000)
+            self.assertIn("directeur", r.get("notes", ""))
+
+            # 4. Deliver project (LIVRE) then get paid (PAYE)
+            st, r, _ = make_request(
+                status_url,
+                method="POST",
+                data={"name": "Clinique Suka Ouaga", "city": "Ouagadougou", "crm_status": "LIVRE"},
+            )
+            self.assertEqual(st, 200)
+            self.assertEqual(r.get("crm_status"), "LIVRE")
+
+            st, r, _ = make_request(
+                status_url,
+                method="POST",
+                data={"name": "Clinique Suka Ouaga", "city": "Ouagadougou", "crm_status": "PAYE"},
+            )
+            self.assertEqual(st, 200)
+            self.assertEqual(r.get("crm_status"), "PAYE")
+
+            # 5. Re-scan Ouagadougou -> verify merge_leads preserves all pipeline data
+            saved_before = server_bf.load_saved_leads()
+            fresh_scan = [
+                {
+                    "name": "Clinique Suka Ouaga",
+                    "city": "Ouagadougou",
+                    "crm_status": "A_CONTACTER",
+                    "in_pipeline": False,
+                    "score": 90,
+                    "phone_type": "MOBILE_WHATSAPP",
+                }
+            ]
+            merged = server_bf.merge_leads(saved_before, fresh_scan)
+            lead_after = merged[0]
+            self.assertEqual(lead_after["crm_status"], "PAYE")
+            self.assertTrue(lead_after["in_pipeline"])
+            self.assertTrue(lead_after["rdv_done"])
+            self.assertEqual(lead_after["deal_amount"], 125000)
+            self.assertIn("directeur", lead_after["notes"])
+        finally:
+            server.stop()
+
+    def test_t4_04_radar_vs_pipeline_ui_and_rescan_memory(self):
+        """T4.4: INDEX_HTML contains the 6-stage pipeline controls, FCFA banner, RDV Fait toggle, and Radar memory banner."""
+        html_src = getattr(server_bf, "INDEX_HTML", "")
+        self.assertIn("addLeadToPipeline", html_src)
+        self.assertIn("toggleLeadRdvDone", html_src)
+        self.assertIn("updateLeadMeta", html_src)
+        self.assertIn("hideKnownLeadsToggle", html_src)
+        self.assertIn("pipelineFinanceBanner", html_src)
+        self.assertIn("crmStage_LIVRE", html_src)
+        self.assertIn("crmStage_PAYE", html_src)
+        self.assertIn("buildRadarMemoryBannerHtml", html_src)
+
 
 # ============================================================================
 # CUSTOM TEST RUNNER & DETAILED REPORTING

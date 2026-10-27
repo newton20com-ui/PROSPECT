@@ -26,6 +26,17 @@ BASE_DIR = Path(__file__).resolve().parent
 STATE_FILE = BASE_DIR / "leads_state.json"
 
 
+PIPELINE_ACTIVE_STATUSES = {"CONTACTE", "RDV", "CLIENT", "LIVRE", "PAYE", "ECHEC", "IGNORE"}
+VALID_CRM_STATUSES = {"NOUVEAU", "A_CONTACTER", "CONTACTE", "RDV", "CLIENT", "LIVRE", "PAYE", "ECHEC", "IGNORE"}
+
+
+def _safe_int_amount(val: object) -> int:
+    try:
+        return max(0, int(float(val or 0)))
+    except (ValueError, TypeError):
+        return 0
+
+
 def lead_to_dict(b: BusinessLead) -> dict:
     from urllib.parse import quote_plus
     phone_display = b.phone_clean or b.phone_raw or "Non renseigné"
@@ -37,6 +48,8 @@ def lead_to_dict(b: BusinessLead) -> dict:
         loc = b.city if b.city and b.city != "Audit Direct" else "Burkina Faso"
         q = quote_plus(f"{b.name} {loc}".strip())
         maps_url = f"https://www.google.com/maps/search/?api=1&query={q}"
+    crm_st = getattr(b, "crm_status", "A_CONTACTER") or "A_CONTACTER"
+    in_pipe = bool(getattr(b, "in_pipeline", False) or (crm_st in PIPELINE_ACTIVE_STATUSES))
     return {
         "name": b.name,
         "city": b.city,
@@ -46,6 +59,7 @@ def lead_to_dict(b: BusinessLead) -> dict:
         "phone": phone_display,
         "phone_type": "MOBILE_WHATSAPP" if is_mobile else ("FIXE_ONATEL" if b.phone_clean else "AUCUN"),
         "tel_url": f"tel:{b.phone_clean}" if b.phone_clean else "",
+        "email": getattr(b, "email", "") or "",
         "website": b.website,
         "facebook_url": b.facebook_url,
         "status": b.audit_status,
@@ -57,7 +71,12 @@ def lead_to_dict(b: BusinessLead) -> dict:
         "lat": b.lat,
         "lon": b.lon,
         "maps_url": maps_url,
-        "crm_status": getattr(b, "crm_status", "A_CONTACTER") or "A_CONTACTER",
+        "crm_status": crm_st,
+        "in_pipeline": in_pipe,
+        "rdv_done": bool(getattr(b, "rdv_done", False)),
+        "deal_amount": _safe_int_amount(getattr(b, "deal_amount", 0)),
+        "notes": str(getattr(b, "notes", "") or ""),
+        "updated_at": str(getattr(b, "updated_at", "") or ""),
         "has_fb_pixel": bool(getattr(b, "has_fb_pixel", False)),
         "has_google_analytics": bool(getattr(b, "has_google_analytics", False)),
     }
@@ -80,6 +99,13 @@ def load_saved_leads() -> list[dict]:
                         lead = dict(item)
                         if not lead.get("crm_status"):
                             lead["crm_status"] = "A_CONTACTER"
+                        crm_st = lead["crm_status"]
+                        lead["in_pipeline"] = bool(lead.get("in_pipeline", False) or (crm_st in PIPELINE_ACTIVE_STATUSES))
+                        lead["rdv_done"] = bool(lead.get("rdv_done", False))
+                        lead["deal_amount"] = _safe_int_amount(lead.get("deal_amount", 0))
+                        lead["notes"] = str(lead.get("notes") or "")
+                        lead["updated_at"] = str(lead.get("updated_at") or "")
+                        lead["email"] = str(lead.get("email") or "")
                         lead["has_fb_pixel"] = bool(lead.get("has_fb_pixel", False))
                         lead["has_google_analytics"] = bool(lead.get("has_google_analytics", False))
                         if not lead.get("maps_url"):
@@ -106,7 +132,7 @@ def save_leads(leads_dicts: list[dict]) -> None:
 
 
 def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
-    """Fusionne les nouveaux leads avec les existants sans écraser les statuts CRM."""
+    """Fusionne les nouveaux leads avec les existants sans écraser les statuts CRM, montants, RDV ou notes."""
     from urllib.parse import quote_plus
     merged_map: dict[str, dict] = {}
     for item in existing:
@@ -120,6 +146,11 @@ def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
         entry = dict(item)
         if not entry.get("crm_status"):
             entry["crm_status"] = "A_CONTACTER"
+        entry["in_pipeline"] = bool(entry.get("in_pipeline", False) or (entry["crm_status"] in PIPELINE_ACTIVE_STATUSES))
+        entry["rdv_done"] = bool(entry.get("rdv_done", False))
+        entry["deal_amount"] = _safe_int_amount(entry.get("deal_amount", 0))
+        entry["notes"] = str(entry.get("notes") or "")
+        entry["updated_at"] = str(entry.get("updated_at") or "")
         merged_map[key] = entry
 
     for item in incoming:
@@ -134,21 +165,47 @@ def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
         if key in merged_map:
             existing_lead = merged_map[key]
             existing_status = existing_lead.get("crm_status")
+            existing_in_pipe = bool(existing_lead.get("in_pipeline", False) or (existing_status in PIPELINE_ACTIVE_STATUSES))
+            existing_rdv_done = bool(existing_lead.get("rdv_done", False))
+            existing_amount = _safe_int_amount(existing_lead.get("deal_amount", 0))
+            existing_notes = str(existing_lead.get("notes") or "")
+            existing_updated = str(existing_lead.get("updated_at") or "")
+
             combined = dict(existing_lead)
             combined.update(entry)
-            if existing_status:
+            if existing_status and (existing_status != "A_CONTACTER" or not entry.get("crm_status") or entry.get("crm_status") == "A_CONTACTER"):
                 combined["crm_status"] = existing_status
             else:
                 combined["crm_status"] = entry.get("crm_status") or "A_CONTACTER"
+
+            combined["in_pipeline"] = bool(
+                existing_in_pipe
+                or entry.get("in_pipeline", False)
+                or (combined["crm_status"] in PIPELINE_ACTIVE_STATUSES)
+            )
+            combined["rdv_done"] = bool(existing_rdv_done or entry.get("rdv_done", False))
+            combined["deal_amount"] = _safe_int_amount(entry.get("deal_amount")) if _safe_int_amount(entry.get("deal_amount")) > 0 else existing_amount
+            combined["notes"] = str(entry.get("notes") or "") if str(entry.get("notes") or "").strip() else existing_notes
+            combined["updated_at"] = str(entry.get("updated_at") or "") if str(entry.get("updated_at") or "").strip() else existing_updated
             merged_map[key] = combined
         else:
             if not entry.get("crm_status"):
                 entry["crm_status"] = "A_CONTACTER"
+            entry["in_pipeline"] = bool(entry.get("in_pipeline", False) or (entry["crm_status"] in PIPELINE_ACTIVE_STATUSES))
+            entry["rdv_done"] = bool(entry.get("rdv_done", False))
+            entry["deal_amount"] = _safe_int_amount(entry.get("deal_amount", 0))
+            entry["notes"] = str(entry.get("notes") or "")
+            entry["updated_at"] = str(entry.get("updated_at") or "")
             merged_map[key] = entry
 
     for lead in merged_map.values():
         lead.setdefault("has_fb_pixel", False)
         lead.setdefault("has_google_analytics", False)
+        lead.setdefault("in_pipeline", bool(lead.get("crm_status") in PIPELINE_ACTIVE_STATUSES))
+        lead.setdefault("rdv_done", False)
+        lead.setdefault("deal_amount", 0)
+        lead.setdefault("notes", "")
+        lead.setdefault("updated_at", "")
         if not lead.get("maps_url"):
             lat = lead.get("lat")
             lon = lead.get("lon")
@@ -1171,21 +1228,27 @@ INDEX_HTML = """<!DOCTYPE html>
       margin-top: 2px;
     }
 
-    /* 4-Pill Segmented Mini-CRM Control (R1) */
+    /* 6-Stage Segmented Mini-CRM Control & Progressive Pipeline Controls */
     .crm-bar {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 6px;
       background: #080d16;
-      padding: 5px;
+      padding: 6px;
       border-radius: 10px;
       border: 1px solid var(--border);
       margin-top: 10px;
     }
 
-    @media (min-width: 520px) {
+    @media (min-width: 640px) {
       .crm-bar {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 960px) {
+      .crm-bar {
+        grid-template-columns: repeat(6, 1fr);
       }
     }
 
@@ -1193,7 +1256,7 @@ INDEX_HTML = """<!DOCTYPE html>
       background: transparent;
       border: 1px solid transparent;
       color: var(--muted);
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       font-weight: 700;
       padding: 8px 6px;
       border-radius: 7px;
@@ -1204,7 +1267,7 @@ INDEX_HTML = """<!DOCTYPE html>
       text-overflow: ellipsis;
       transition: all 0.15s ease-in-out;
       touch-action: manipulation;
-      min-height: 42px;
+      min-height: 40px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1217,10 +1280,10 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .crm-pill.crm-a-contacter.active {
-      background: #1e293b;
-      border-color: #64748b;
-      color: #f8fafc;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+      background: rgba(59, 130, 246, 0.22);
+      border-color: var(--blue);
+      color: #93c5fd;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
     }
 
     .crm-pill.crm-contacte.active {
@@ -1231,10 +1294,24 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .crm-pill.crm-client.active {
-      background: rgba(16, 185, 129, 0.25);
+      background: rgba(168, 85, 247, 0.24);
+      border-color: var(--purple);
+      color: #e9d5ff;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+
+    .crm-pill.crm-livre.active {
+      background: rgba(20, 184, 166, 0.24);
+      border-color: var(--teal);
+      color: #99f6e4;
+      box-shadow: 0 0 10px rgba(20, 184, 166, 0.3);
+    }
+
+    .crm-pill.crm-paye.active {
+      background: rgba(16, 185, 129, 0.28);
       border-color: var(--green);
       color: #6ee7b7;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
     }
 
     .crm-pill.crm-ignore.active {
@@ -1243,25 +1320,285 @@ INDEX_HTML = """<!DOCTYPE html>
       color: #fca5a5;
     }
 
-    .lead-card.crm-state-IGNORE {
-      opacity: 0.55;
+    .lead-card.crm-state-IGNORE,
+    .lead-card.crm-state-ECHEC {
+      opacity: 0.6;
       border-color: #334155;
     }
 
-    /* Interactive 4-Stage CRM Pipeline Board */
-    .crm-pipeline-strip {
+    /* Single Primary Button on Untriaged Scan Cards ("Mettre dans À contacter") */
+    .scan-triage-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px dashed rgba(59, 130, 246, 0.45);
+    }
+
+    .btn-add-pipeline {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      border: 1px solid #60a5fa;
+      padding: 10px 16px;
+      border-radius: 9px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      transition: all 0.16s ease;
+      flex: 1 1 220px;
+    }
+
+    .btn-add-pipeline:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.1);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.55);
+    }
+
+    /* Visual Memory Banner on Scan Cards when lead is ALREADY in the user's Pipeline */
+    .pipeline-memory-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-top: 8px;
+      border: 1px solid var(--border-light);
+    }
+
+    .mem-A_CONTACTER {
+      background: rgba(59, 130, 246, 0.16);
+      border-color: #3b82f6;
+      color: #bfdbfe;
+    }
+    .mem-CONTACTE {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: #f59e0b;
+      color: #fde68a;
+    }
+    .mem-RDV, .mem-CLIENT {
+      background: rgba(168, 85, 247, 0.18);
+      border-color: #a855f7;
+      color: #e9d5ff;
+    }
+    .mem-LIVRE {
+      background: rgba(20, 184, 166, 0.18);
+      border-color: #14b8a6;
+      color: #99f6e4;
+    }
+    .mem-PAYE {
+      background: rgba(16, 185, 129, 0.22);
+      border-color: #10b981;
+      color: #6ee7b7;
+    }
+    .mem-ECHEC, .mem-IGNORE {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.55);
+      color: #fca5a5;
+    }
+
+    /* Progressive Pipeline Stage Decision Box inside "Mon Pipeline Commercial" */
+    .pipeline-stage-box {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(8, 13, 22, 0.88);
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pipeline-stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-secondary);
+    }
+
+    .pipeline-next-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn-stage-action {
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 42px;
+      transition: all 0.15s ease;
+      flex: 1 1 auto;
+    }
+
+    .btn-stage-action:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .btn-stage-contacte {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+    .btn-stage-rdv {
+      background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+      border-color: #c084fc;
+      color: #fff;
+    }
+    .btn-stage-rdv-check {
+      background: rgba(168, 85, 247, 0.16);
+      border: 2px solid #a855f7;
+      color: #e9d5ff;
+    }
+    .btn-stage-rdv-check.done {
+      background: rgba(16, 185, 129, 0.24);
+      border-color: #10b981;
+      color: #6ee7b7;
+    }
+    .btn-stage-livre {
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      border-color: #5eead4;
+      color: #fff;
+    }
+    .btn-stage-paye {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-color: #6ee7b7;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    .btn-stage-echec {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    /* Inline Deal Amount (FCFA) & Notes Bar on Pipeline Cards */
+    .pipeline-meta-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(51, 71, 102, 0.45);
+    }
+
+    @media (min-width: 640px) {
+      .pipeline-meta-grid {
+        grid-template-columns: 190px 1fr;
+      }
+    }
+
+    .meta-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .meta-input-group label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .meta-input-group input {
+      min-height: 38px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      background: #050911;
+    }
+
+    /* Financial Summary Banner in Mon Pipeline Commercial */
+    .pipeline-finance-banner {
+      display: none;
+      grid-template-columns: 1fr;
       gap: 10px;
       margin-bottom: 16px;
     }
 
-    @media (min-width: 640px) {
-      .crm-pipeline-strip { grid-template-columns: repeat(3, 1fr); }
+    @media (min-width: 680px) {
+      .pipeline-finance-banner {
+        grid-template-columns: repeat(3, 1fr);
+      }
     }
 
-    @media (min-width: 960px) {
-      .crm-pipeline-strip { grid-template-columns: repeat(5, 1fr); }
+    .fin-card {
+      background: linear-gradient(135deg, #111927 0%, #0b111d 100%);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .fin-card.fin-paid { border-left: 4px solid var(--green); }
+    .fin-card.fin-pending { border-left: 4px solid var(--teal); }
+    .fin-card.fin-active { border-left: 4px solid var(--blue); }
+
+    .fin-title {
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .fin-amount {
+      font-size: 1.4rem;
+      font-weight: 900;
+      margin-top: 4px;
+      color: #fff;
+    }
+
+    .fin-sub {
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Interactive 6-Stage CRM Pipeline Board */
+    .crm-pipeline-strip {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .crm-pipeline-strip { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    @media (min-width: 1024px) {
+      .crm-pipeline-strip { grid-template-columns: repeat(7, 1fr); }
     }
 
     .crm-stage-card {
@@ -1289,6 +1626,47 @@ INDEX_HTML = """<!DOCTYPE html>
       border-color: var(--blue);
       background: linear-gradient(180deg, rgba(59, 130, 246, 0.16) 0%, var(--card-2) 100%);
       box-shadow: 0 0 0 1px var(--blue), 0 6px 18px rgba(59, 130, 246, 0.2);
+    }
+
+    /* One-Tap Hide Known Leads Toggle Bar */
+    .radar-memory-toggle-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .toggle-known-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      transition: all 0.15s ease;
+    }
+
+    .toggle-known-label:hover {
+      background: rgba(59, 130, 246, 0.18);
+    }
+
+    .toggle-known-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      min-height: 18px;
+      margin: 0;
+      accent-color: var(--blue);
+      cursor: pointer;
     }
 
     .workspace-context-bar {
@@ -1431,23 +1809,23 @@ INDEX_HTML = """<!DOCTYPE html>
             <h1>ProspectBF</h1>
             <span class="badge-bf">BURKINA B2B</span>
           </div>
-          <span class="brand-sub">Plateforme d'Audit Digital, Prospection & Mini-CRM • 16 Secteurs</span>
+          <span class="brand-sub">Radar d'Audit Digital & Pipeline Commercial B2B • 7 Villes • 16 Secteurs</span>
         </div>
       </div>
 
-      <!-- Navigation Principale pour rentrer dans chaque espace -->
+      <!-- Navigation Principale : Séparation claire entre Radar de Scan et Mon Pipeline Commercial -->
       <nav class="app-nav-pills" aria-label="Navigation principale">
-        <button type="button" id="navView_all" class="nav-pill active" onclick="switchAppView('all')">
-          🏠 Vue Globale <span class="nav-pill-count" id="navCountAll">0</span>
-        </button>
-        <button type="button" id="navView_scanner" class="nav-pill" onclick="switchAppView('scanner')">
-          🔍 Scanner & Audit
+        <button type="button" id="navView_scanner" class="nav-pill active" onclick="switchAppView('scanner')">
+          🔍 Radar de Scan <span class="nav-pill-count" id="navCountAll">0</span>
         </button>
         <button type="button" id="navView_crm" class="nav-pill" onclick="switchAppView('crm')">
-          📋 Pipeline CRM <span class="nav-pill-count" id="navCountCrm">0</span>
+          📋 Mon Pipeline Commercial <span class="nav-pill-count" id="navCountCrm" style="background:rgba(16,185,129,0.25); color:#6ee7b7;">0</span>
         </button>
         <button type="button" id="navView_offers" class="nav-pill" onclick="switchAppView('offers')">
           🎯 Offres & Pitchs
+        </button>
+        <button type="button" id="navView_all" class="nav-pill" onclick="switchAppView('all')">
+          🏠 Vue Globale
         </button>
       </nav>
     </div>
@@ -1455,8 +1833,8 @@ INDEX_HTML = """<!DOCTYPE html>
 
   <div class="container">
     <div id="workspaceContextBar" class="workspace-context-bar">
-      <span id="workspaceContextTitle"><strong>🏠 Espace Actif : Vue Globale SaaS</strong> — Acquisition, Stratégie d'Offre, Diagnostic & Pipeline CRM complet</span>
-      <span style="font-size:0.74rem; color:var(--muted);">Astuce : Cliquez sur une entreprise pour entrer dans sa fiche détaillée</span>
+      <span id="workspaceContextTitle"><strong>🔍 Espace Actif : Radar de Scan & Triage</strong> — Scannez une ville, repérez les opportunités et cliquez sur <strong>« ➕ Mettre dans À contacter »</strong> pour les envoyer dans votre Pipeline Commercial</span>
+      <button type="button" id="btnQuickGoPipeline" class="btn btn-reset" style="width:auto; min-height:34px; padding:5px 12px; font-size:0.76rem; border-color:var(--blue); color:#93c5fd;" onclick="switchAppView('crm')">📂 Ouvrir Mon Pipeline Commercial →</button>
     </div>
 
     <div id="statusBanner"></div>
@@ -1465,8 +1843,8 @@ INDEX_HTML = """<!DOCTYPE html>
     <section id="sectionAcquisition" class="section-block">
       <div class="section-title-bar">
         <div class="section-heading">
-          <span class="section-step-badge">ESPACE 1</span>
-          <span>Acquisition & Audit Technique B2B</span>
+          <span class="section-step-badge">ÉTAPE 1</span>
+          <span>Radar de Scan & Audit Technique B2B</span>
         </div>
         <span class="section-hint">Scannez une ville entière ou testez une entreprise précise</span>
       </div>
@@ -1554,7 +1932,7 @@ INDEX_HTML = """<!DOCTYPE html>
     <section id="sectionOffers" class="section-block">
       <div class="offer-selector-card">
         <div class="offer-header">
-          <span class="offer-badge-title">🎯 ESPACE 2 • SERVICE À VENDRE (PITCH DYNAMIQUE)</span>
+          <span class="offer-badge-title">🎯 SERVICE À VENDRE (PITCH WHATSAPP DYNAMIQUE)</span>
           <span class="offer-subtitle">Cliquez sur une offre pour adapter les arguments et messages WhatsApp :</span>
         </div>
         <div class="offer-grid">
@@ -1583,24 +1961,43 @@ INDEX_HTML = """<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- SECTION 3 : TABLEAU DE BORD KPI, FILTRES & PIPELINE PROSPECTS -->
+    <!-- SECTION 3 : TABLEAU DE BORD KPI, MON PIPELINE COMMERCIAL & LISTE PROSPECTS -->
     <section id="sectionProspects" class="section-block">
       <div class="section-title-bar">
         <div class="section-heading">
-          <span class="section-step-badge">ESPACE 3</span>
-          <span>Diagnostic Digital & Pipeline Prospects CRM</span>
+          <span class="section-step-badge" id="sectionProspectsBadge">RADAR & PIPELINE</span>
+          <span id="sectionProspectsHeadingText">Résultats du Scan & Suivi Commercial</span>
         </div>
-        <span class="section-hint">Cliquez sur un indicateur, une étape CRM ou une entreprise pour entrer dedans</span>
+        <span class="section-hint" id="sectionProspectsHint">Séparez vos prospects à contacter et suivez vos affaires jusqu'au paiement</span>
       </div>
 
-      <!-- KPI STRIP (DIAGNOSTIC TECHNIQUE) -->
+      <!-- BANNIÈRE FINANCIÈRE DU PIPELINE COMMERCIAL (Affichée dans Mon Pipeline Commercial) -->
+      <div id="pipelineFinanceBanner" class="pipeline-finance-banner">
+        <div class="fin-card fin-paid">
+          <span class="fin-title">💰 Total Encaissé (Payé)</span>
+          <div class="fin-amount" id="finPaidTotal" style="color: var(--green);">0 FCFA</div>
+          <span class="fin-sub" id="finPaidCount">0 affaire conclue et payée</span>
+        </div>
+        <div class="fin-card fin-pending">
+          <span class="fin-title">⏳ En attente (Livré + RDV)</span>
+          <div class="fin-amount" id="finPendingTotal" style="color: #5eead4;">0 FCFA</div>
+          <span class="fin-sub" id="finPendingCount">0 projet en cours / livré</span>
+        </div>
+        <div class="fin-card fin-active">
+          <span class="fin-title">📥 Prospects dans Mon Pipeline</span>
+          <div class="fin-amount" id="finActiveCount" style="color: #93c5fd;">0</div>
+          <span class="fin-sub" id="finTodoCount">Dont 0 dans « À contacter »</span>
+        </div>
+      </div>
+
+      <!-- KPI STRIP (DIAGNOSTIC TECHNIQUE - Affiché dans Radar de Scan) -->
       <div id="kpiDiagnosticStrip" class="kpi-strip">
         <div id="kpiCard_ALL" class="kpi active-kpi" onclick="quickFilterStatus('ALL')">
           <div class="kpi-top-row">
             <div class="kpi-val" id="kpiTotal">0</div>
             <span class="kpi-tag">100%</span>
           </div>
-          <div class="kpi-label">📊 Tout voir</div>
+          <div class="kpi-label">📊 Tout le Radar</div>
         </div>
         <div id="kpiCard_SITE_MORT" class="kpi" onclick="quickFilterStatus('SITE_MORT')">
           <div class="kpi-top-row">
@@ -1632,49 +2029,63 @@ INDEX_HTML = """<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- INTERACTIVE CRM PIPELINE STAGE STRIP -->
+      <!-- INTERACTIVE 6-STAGE CRM PIPELINE STRIP -->
       <div id="crmPipelineStrip" class="crm-pipeline-strip">
         <div id="crmStage_ALL" class="crm-stage-card active-crm-stage" style="border-top-color: var(--blue);" onclick="quickFilterCrm('ALL')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_ALL" style="font-size:1.3rem;">0</div>
-            <span class="kpi-tag">Pipeline</span>
+            <div class="kpi-val" id="crmCount_ALL" style="font-size:1.25rem;">0</div>
+            <span class="kpi-tag">Total</span>
           </div>
-          <div class="kpi-label">📋 Tous les statuts CRM</div>
+          <div class="kpi-label">📋 Tout le Pipeline</div>
         </div>
-        <div id="crmStage_A_CONTACTER" class="crm-stage-card" style="border-top-color: #94a3b8;" onclick="quickFilterCrm('A_CONTACTER')">
+        <div id="crmStage_A_CONTACTER" class="crm-stage-card" style="border-top-color: #3b82f6;" onclick="quickFilterCrm('A_CONTACTER')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_A_CONTACTER" style="font-size:1.3rem; color:#f8fafc;">0</div>
+            <div class="kpi-val" id="crmCount_A_CONTACTER" style="font-size:1.25rem; color:#93c5fd;">0</div>
             <span class="kpi-tag">Étape 1</span>
           </div>
-          <div class="kpi-label">⚪ À contacter</div>
+          <div class="kpi-label">📥 À contacter</div>
         </div>
         <div id="crmStage_CONTACTE" class="crm-stage-card" style="border-top-color: var(--amber);" onclick="quickFilterCrm('CONTACTE')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_CONTACTE" style="font-size:1.3rem; color:var(--amber);">0</div>
+            <div class="kpi-val" id="crmCount_CONTACTE" style="font-size:1.25rem; color:var(--amber);">0</div>
             <span class="kpi-tag">Étape 2</span>
           </div>
-          <div class="kpi-label">🟡 Contactés</div>
+          <div class="kpi-label">⏳ Déjà contacté</div>
         </div>
-        <div id="crmStage_CLIENT" class="crm-stage-card" style="border-top-color: var(--green);" onclick="quickFilterCrm('CLIENT')">
+        <div id="crmStage_CLIENT" class="crm-stage-card" style="border-top-color: var(--purple);" onclick="quickFilterCrm('CLIENT')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_CLIENT" style="font-size:1.3rem; color:var(--green);">0</div>
-            <span class="kpi-tag">Gagné</span>
+            <div class="kpi-val" id="crmCount_CLIENT" style="font-size:1.25rem; color:#d8b4fe;">0</div>
+            <span class="kpi-tag">Étape 3</span>
           </div>
-          <div class="kpi-label">🟢 RDV / Clients</div>
+          <div class="kpi-label">📅 Rendez-vous</div>
+        </div>
+        <div id="crmStage_LIVRE" class="crm-stage-card" style="border-top-color: var(--teal);" onclick="quickFilterCrm('LIVRE')">
+          <div class="kpi-top-row">
+            <div class="kpi-val" id="crmCount_LIVRE" style="font-size:1.25rem; color:#5eead4;">0</div>
+            <span class="kpi-tag">Étape 4</span>
+          </div>
+          <div class="kpi-label">🛠️ Livré</div>
+        </div>
+        <div id="crmStage_PAYE" class="crm-stage-card" style="border-top-color: var(--green);" onclick="quickFilterCrm('PAYE')">
+          <div class="kpi-top-row">
+            <div class="kpi-val" id="crmCount_PAYE" style="font-size:1.25rem; color:var(--green);">0</div>
+            <span class="kpi-tag">Étape 5</span>
+          </div>
+          <div class="kpi-label">💰 Payé</div>
         </div>
         <div id="crmStage_IGNORE" class="crm-stage-card" style="border-top-color: var(--red);" onclick="quickFilterCrm('IGNORE')">
           <div class="kpi-top-row">
-            <div class="kpi-val" id="crmCount_IGNORE" style="font-size:1.3rem; color:var(--red);">0</div>
-            <span class="kpi-tag">Archivé</span>
+            <div class="kpi-val" id="crmCount_IGNORE" style="font-size:1.25rem; color:var(--red);">0</div>
+            <span class="kpi-tag">Étape 6</span>
           </div>
-          <div class="kpi-label">🔴 Ignorés</div>
+          <div class="kpi-label">❌ Échecs / Sans suite</div>
         </div>
       </div>
 
       <!-- RESPONSIVE FILTERS -->
       <div class="filters-box">
         <div class="search-row">
-          <input type="search" id="searchInput" placeholder="🔎 Rechercher par nom d'entreprise, quartier, ville, problème technique..." />
+          <input type="search" id="searchInput" placeholder="🔎 Rechercher par nom d'entreprise, quartier, ville, note, problème technique..." />
           <button class="btn btn-reset" onclick="resetFilters()">🔄 Réinitialiser</button>
         </div>
         <div class="selects-grid">
@@ -1683,6 +2094,13 @@ INDEX_HTML = """<!DOCTYPE html>
           <select id="statusFilter"></select>
           <select id="sectorFilter"></select>
           <select id="phoneFilter"></select>
+        </div>
+        <div id="radarMemoryToggleBar" class="radar-memory-toggle-bar">
+          <label class="toggle-known-label" for="hideKnownLeadsToggle">
+            <input type="checkbox" id="hideKnownLeadsToggle" onchange="render()" />
+            <span>🙈 Masquer ceux déjà dans mon Pipeline / Échecs (Ne voir que les nouveaux)</span>
+          </label>
+          <span id="radarKnownSummaryText" style="font-size:0.76rem; color:var(--muted);"></span>
         </div>
       </div>
 
@@ -1791,30 +2209,146 @@ INDEX_HTML = """<!DOCTYPE html>
     }
   }
 
-  async function setLeadCrmStatus(name, newStatus, city) {
-    const match = LEADS.find(l => {
+  let CURRENT_VIEW = 'scanner';
+  const PIPELINE_STAGE_KEYS = ['CONTACTE', 'RDV', 'CLIENT', 'LIVRE', 'PAYE', 'ECHEC', 'IGNORE'];
+
+  function isLeadInPipeline(b) {
+    if (!b) return false;
+    const st = b.crm_status || 'A_CONTACTER';
+    if (PIPELINE_STAGE_KEYS.includes(st)) return true;
+    return Boolean(b.in_pipeline);
+  }
+
+  function normalizeStageGroup(crmStatus) {
+    const st = crmStatus || 'A_CONTACTER';
+    if (st === 'RDV' || st === 'CLIENT') return 'CLIENT';
+    if (st === 'ECHEC' || st === 'IGNORE') return 'IGNORE';
+    if (st === 'LIVRE') return 'LIVRE';
+    if (st === 'PAYE') return 'PAYE';
+    if (st === 'CONTACTE') return 'CONTACTE';
+    return 'A_CONTACTER';
+  }
+
+  function formatFcfa(amount) {
+    const n = Math.max(0, parseInt(amount || 0, 10) || 0);
+    return n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ') + ' FCFA';
+  }
+
+  function formatRelativeTime(isoStr) {
+    if (!isoStr) return "Aujourd'hui";
+    try {
+      const dt = new Date(isoStr);
+      if (isNaN(dt.getTime())) return "Aujourd'hui";
+      const diffMs = Date.now() - dt.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      if (diffMin < 2) return "À l'instant";
+      if (diffMin < 60) return `Il y a ${diffMin} min`;
+      const diffHours = Math.floor(diffMin / 60);
+      if (diffHours < 24) return `Aujourd'hui (il y a ${diffHours}h)`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `Il y a ${diffDays} j`;
+    } catch (e) {
+      return "Aujourd'hui";
+    }
+  }
+
+  function findLeadByNameCity(name, city) {
+    return LEADS.find(l => {
       const sameName = (l.name || '').trim().toLowerCase() === (name || '').trim().toLowerCase();
       if (city && city !== 'Audit Direct') {
         return sameName && (l.city || '').trim().toLowerCase() === city.trim().toLowerCase();
       }
       return sameName;
     });
+  }
+
+  async function syncLeadToServer(lead, extraPayload = {}) {
+    if (!lead) return;
+    try {
+      await fetch('/api/leads/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({
+          name: lead.name,
+          city: lead.city,
+          crm_status: lead.crm_status || 'A_CONTACTER',
+          in_pipeline: Boolean(lead.in_pipeline),
+          rdv_done: Boolean(lead.rdv_done),
+          deal_amount: parseInt(lead.deal_amount || 0, 10) || 0,
+          notes: lead.notes || '',
+          updated_at: lead.updated_at || new Date().toISOString()
+        }, extraPayload))
+      });
+    } catch (e) {
+      console.warn('Backend CRM sync failed, cached locally', e);
+    }
+  }
+
+  async function addLeadToPipeline(name, city) {
+    const match = findLeadByNameCity(name, city);
+    if (!match) return;
+    match.crm_status = 'A_CONTACTER';
+    match.in_pipeline = true;
+    match.updated_at = new Date().toISOString();
+    saveLocalBackup();
+    populateFilterDropdowns();
+    render();
+    if (ACTIVE_DETAIL_LEAD === match) renderLeadDetailDrawer();
+    showBanner(`📌 "${match.name}" a été envoyé dans « Mon Pipeline Commercial → À contacter » !`);
+    await syncLeadToServer(match, { crm_status: 'A_CONTACTER', in_pipeline: true });
+  }
+
+  async function setLeadCrmStatus(name, newStatus, city) {
+    const match = findLeadByNameCity(name, city);
     if (match) {
       match.crm_status = newStatus;
+      match.in_pipeline = newStatus !== 'NOUVEAU';
+      match.updated_at = new Date().toISOString();
       saveLocalBackup();
       populateFilterDropdowns();
       render();
       if (ACTIVE_DETAIL_LEAD === match) renderLeadDetailDrawer();
-      try {
-        await fetch('/api/leads/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: match.name, city: match.city, crm_status: newStatus })
-        });
-      } catch (e) {
-        console.warn('Backend CRM sync failed, cached locally', e);
-      }
+      await syncLeadToServer(match, { crm_status: newStatus, in_pipeline: match.in_pipeline });
     }
+  }
+
+  async function toggleLeadRdvDone(name, city) {
+    const match = findLeadByNameCity(name, city);
+    if (!match) return;
+    match.rdv_done = !Boolean(match.rdv_done);
+    match.in_pipeline = true;
+    if (match.crm_status !== 'CLIENT' && match.crm_status !== 'RDV') {
+      match.crm_status = 'CLIENT';
+    }
+    match.updated_at = new Date().toISOString();
+    saveLocalBackup();
+    populateFilterDropdowns();
+    render();
+    if (ACTIVE_DETAIL_LEAD === match) renderLeadDetailDrawer();
+    await syncLeadToServer(match, { rdv_done: match.rdv_done });
+  }
+
+  async function updateLeadMeta(name, city, fields) {
+    const match = findLeadByNameCity(name, city);
+    if (!match) return;
+    if (fields.deal_amount !== undefined) {
+      match.deal_amount = Math.max(0, parseInt(fields.deal_amount || 0, 10) || 0);
+    }
+    if (fields.notes !== undefined) {
+      match.notes = String(fields.notes || '').trim();
+    }
+    match.updated_at = new Date().toISOString();
+    saveLocalBackup();
+    updateKPIs();
+    if (ACTIVE_DETAIL_LEAD === match) renderLeadDetailDrawer();
+    await syncLeadToServer(match, fields);
+  }
+
+  function openLeadInPipeline(name, city) {
+    const match = findLeadByNameCity(name, city);
+    const stageGroup = match ? normalizeStageGroup(match.crm_status) : 'ALL';
+    switchAppView('crm');
+    quickFilterCrm(stageGroup);
   }
 
   function generatePitch(lead, offer) {
@@ -1879,9 +2413,21 @@ INDEX_HTML = """<!DOCTYPE html>
         if (prev.crm_status && prev.crm_status !== 'A_CONTACTER' && (!item.crm_status || item.crm_status === 'A_CONTACTER')) {
           combined.crm_status = prev.crm_status;
         }
+        combined.in_pipeline = Boolean(
+          prev.in_pipeline || item.in_pipeline || PIPELINE_STAGE_KEYS.includes(combined.crm_status)
+        );
+        combined.rdv_done = Boolean(prev.rdv_done || item.rdv_done);
+        combined.deal_amount = parseInt(item.deal_amount || prev.deal_amount || 0, 10) || 0;
+        combined.notes = (item.notes && String(item.notes).trim()) ? item.notes : (prev.notes || '');
+        combined.updated_at = item.updated_at || prev.updated_at || '';
         map.set(key, combined);
       } else {
         if (!item.crm_status) item.crm_status = 'A_CONTACTER';
+        item.in_pipeline = Boolean(item.in_pipeline || PIPELINE_STAGE_KEYS.includes(item.crm_status));
+        item.rdv_done = Boolean(item.rdv_done);
+        item.deal_amount = parseInt(item.deal_amount || 0, 10) || 0;
+        item.notes = item.notes || '';
+        item.updated_at = item.updated_at || '';
         map.set(key, item);
       }
     });
@@ -1939,9 +2485,10 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   function highlightActiveCrmStage(crmSt) {
-    ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'IGNORE'].forEach(k => {
+    const norm = crmSt === 'RDV' ? 'CLIENT' : (crmSt === 'ECHEC' ? 'IGNORE' : crmSt);
+    ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'LIVRE', 'PAYE', 'IGNORE'].forEach(k => {
       const el = document.getElementById('crmStage_' + k);
-      if (el) el.classList.toggle('active-crm-stage', k === crmSt);
+      if (el) el.classList.toggle('active-crm-stage', k === norm);
     });
   }
 
@@ -1965,6 +2512,8 @@ INDEX_HTML = """<!DOCTYPE html>
     document.getElementById('statusFilter').value = 'ALL';
     document.getElementById('sectorFilter').value = 'ALL';
     document.getElementById('phoneFilter').value = 'ALL';
+    const hideToggle = document.getElementById('hideKnownLeadsToggle');
+    if (hideToggle) hideToggle.checked = false;
     highlightActiveKpi('ALL');
     highlightActiveCrmStage('ALL');
     render();
@@ -1992,13 +2541,22 @@ INDEX_HTML = """<!DOCTYPE html>
     cityEl.innerHTML = cityHtml;
     cityEl.value = cities.includes(curCity) ? curCity : 'ALL';
 
-    const countAContacter = LEADS.filter(b => (b.crm_status || 'A_CONTACTER') === 'A_CONTACTER').length;
-    const countContacte = LEADS.filter(b => b.crm_status === 'CONTACTE').length;
-    const countClient = LEADS.filter(b => b.crm_status === 'CLIENT').length;
-    const countIgnore = LEADS.filter(b => b.crm_status === 'IGNORE').length;
+    const pipeLeads = LEADS.filter(isLeadInPipeline);
+    const countAContacter = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'A_CONTACTER').length;
+    const countContacte = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CONTACTE').length;
+    const countClient = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CLIENT').length;
+    const countLivre = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'LIVRE').length;
+    const countPaye = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'PAYE').length;
+    const countIgnore = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'IGNORE').length;
 
-    crmEl.innerHTML = `<option value="ALL">📋 Tout le CRM (${LEADS.length})</option><option value="A_CONTACTER">⚪ À contacter (${countAContacter})</option><option value="CONTACTE">🟡 Contacté (${countContacte})</option><option value="CLIENT">🟢 RDV / Client (${countClient})</option><option value="IGNORE">🔴 Ignoré (${countIgnore})</option>`;
-    crmEl.value = ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'IGNORE'].includes(curCrm) ? curCrm : 'ALL';
+    crmEl.innerHTML = `<option value="ALL">📋 Tous statuts CRM (${CURRENT_VIEW === 'crm' ? pipeLeads.length : LEADS.length})</option>` +
+      `<option value="A_CONTACTER">📥 1. À contacter (${countAContacter})</option>` +
+      `<option value="CONTACTE">⏳ 2. Déjà contacté (${countContacte})</option>` +
+      `<option value="CLIENT">📅 3. Rendez-vous (${countClient})</option>` +
+      `<option value="LIVRE">🛠️ 4. Livré (${countLivre})</option>` +
+      `<option value="PAYE">💰 5. Payé (${countPaye})</option>` +
+      `<option value="IGNORE">❌ 6. Échec / Sans suite (${countIgnore})</option>`;
+    crmEl.value = ['ALL', 'A_CONTACTER', 'CONTACTE', 'CLIENT', 'RDV', 'LIVRE', 'PAYE', 'IGNORE', 'ECHEC'].includes(curCrm) ? curCrm : 'ALL';
 
     const countStatus = (st) => LEADS.filter(b => b.status === st).length;
     const countHasFb = LEADS.filter(b => Boolean(b.facebook_url)).length;
@@ -2034,7 +2592,7 @@ INDEX_HTML = """<!DOCTYPE html>
     } catch (e) { LEADS = localLeads; }
     populateFilterDropdowns();
     setSalesOffer(CURRENT_OFFER);
-    render();
+    switchAppView('scanner');
   }
 
   async function clearAllLeads() {
@@ -2052,11 +2610,12 @@ INDEX_HTML = """<!DOCTYPE html>
       showBanner('⚠️ Aucune entreprise à exporter.', true);
       return;
     }
-    const headers = ['Nom', 'Ville', 'Quartier', 'Secteur', 'Telephone', 'Type_Tel', 'Statut_Digital', 'Statut_CRM', 'Score', 'Site_Web', 'Facebook', 'Google_Maps', 'Problemes'];
+    const headers = ['Nom', 'Ville', 'Quartier', 'Secteur', 'Telephone', 'Email', 'Type_Tel', 'Statut_Digital', 'Statut_CRM', 'Dans_Pipeline', 'RDV_Fait', 'Montant_Deal_FCFA', 'Notes_CRM', 'Score', 'Site_Web', 'Facebook', 'Google_Maps', 'Problemes'];
     const rows = LEADS.map(b => [
-      b.name || '', b.city || '', b.neighborhood || '', b.sector || '', b.phone || '',
-      b.phone_type || '', b.status || '', b.crm_status || 'A_CONTACTER', b.score || 0,
-      b.website || '', b.facebook_url || '', b.maps_url || '', (b.issues || []).join(' | ')
+      b.name || '', b.city || '', b.neighborhood || '', b.sector || '', b.phone || '', b.email || '',
+      b.phone_type || '', b.status || '', b.crm_status || 'A_CONTACTER',
+      isLeadInPipeline(b) ? 'OUI' : 'NON', b.rdv_done ? 'OUI' : 'NON', b.deal_amount || 0, b.notes || '',
+      b.score || 0, b.website || '', b.facebook_url || '', b.maps_url || '', (b.issues || []).join(' | ')
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     const csvContent = '\\uFEFF' + headers.join(',') + '\\n' + rows.join('\\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2121,7 +2680,8 @@ INDEX_HTML = """<!DOCTYPE html>
         populateFilterDropdowns();
         render();
         const added = Math.max(0, LEADS.length - prevCount);
-        showBanner(`✅ Scan terminé : ${data.leads.length} auditées (${added} nouvelles ajoutées, total ${LEADS.length}) !`);
+        const alreadyKnown = data.leads.filter(isLeadInPipeline).length;
+        showBanner(`✅ Scan terminé : ${data.leads.length} auditées (${added} nouvelles, ${alreadyKnown} déjà connues dans ton Pipeline) !`);
       }
     } catch (err) {
       showBanner(`❌ Erreur : ${err}`, true);
@@ -2129,6 +2689,7 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   function switchAppView(view) {
+    CURRENT_VIEW = view;
     ['all', 'scanner', 'crm', 'offers'].forEach(v => {
       const btn = document.getElementById('navView_' + v);
       if (btn) btn.classList.toggle('active', v === view);
@@ -2138,15 +2699,28 @@ INDEX_HTML = """<!DOCTYPE html>
     const secPros = document.getElementById('sectionProspects');
     const kpiStrip = document.getElementById('kpiDiagnosticStrip');
     const crmStrip = document.getElementById('crmPipelineStrip');
+    const finBanner = document.getElementById('pipelineFinanceBanner');
+    const toggleBar = document.getElementById('radarMemoryToggleBar');
     const ctxTitle = document.getElementById('workspaceContextTitle');
+    const quickGoBtn = document.getElementById('btnQuickGoPipeline');
+    const badgeEl = document.getElementById('sectionProspectsBadge');
+    const headEl = document.getElementById('sectionProspectsHeadingText');
 
     if (view === 'scanner') {
       if (secAcq) secAcq.style.display = 'block';
-      if (secOff) secOff.style.display = 'none';
+      if (secOff) secOff.style.display = 'block';
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'grid';
       if (crmStrip) crmStrip.style.display = 'none';
-      if (ctxTitle) ctxTitle.innerHTML = "<strong>🔍 Espace Actif : Scanner & Audit Technique</strong> — Acquisition B2B en parallèle et diagnostic des sites web";
+      if (finBanner) finBanner.style.display = 'none';
+      if (toggleBar) toggleBar.style.display = 'flex';
+      if (badgeEl) badgeEl.textContent = 'RADAR DE SCAN';
+      if (headEl) headEl.textContent = 'Résultats du Scan — Séparez qui vous voulez contacter';
+      if (ctxTitle) ctxTitle.innerHTML = "<strong>🔍 Espace Actif : Radar de Scan & Triage</strong> — Appuyez sur <strong>« ➕ Mettre dans À contacter »</strong> sur les entreprises qui vous intéressent pour les envoyer dans votre Pipeline Commercial.";
+      if (quickGoBtn) {
+        quickGoBtn.textContent = '📂 Aller dans Mon Pipeline Commercial →';
+        quickGoBtn.setAttribute('onclick', "switchAppView('crm')");
+      }
       switchTab('scan');
     } else if (view === 'offers') {
       if (secAcq) secAcq.style.display = 'none';
@@ -2154,23 +2728,38 @@ INDEX_HTML = """<!DOCTYPE html>
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'none';
       if (crmStrip) crmStrip.style.display = 'none';
-      if (ctxTitle) ctxTitle.innerHTML = "<strong>🎯 Espace Actif : Stratégie d'Offres & Pitchs</strong> — Adaptation dynamique des messages WhatsApp (Web, Ads, Maps)";
+      if (finBanner) finBanner.style.display = 'none';
+      if (toggleBar) toggleBar.style.display = 'flex';
+      if (ctxTitle) ctxTitle.innerHTML = "<strong>🎯 Espace Actif : Stratégie d'Offres & Pitchs</strong> — Adaptez automatiquement vos messages WhatsApp (Site Web, Facebook Ads, Google Maps).";
     } else if (view === 'crm') {
       if (secAcq) secAcq.style.display = 'none';
-      if (secOff) secOff.style.display = 'none';
+      if (secOff) secOff.style.display = 'block';
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'none';
       if (crmStrip) crmStrip.style.display = 'grid';
-      if (ctxTitle) ctxTitle.innerHTML = "<strong>📋 Espace Actif : Pipeline CRM Commercial</strong> — Cliquez sur une colonne CRM (À contacter, Contactés, Clients, Ignorés)";
-      render();
+      if (finBanner) finBanner.style.display = 'grid';
+      if (toggleBar) toggleBar.style.display = 'none';
+      if (badgeEl) badgeEl.textContent = 'MON PIPELINE COMMERCIAL';
+      if (headEl) headEl.textContent = 'Suivi de vos Prospects : À contacter → Contacté → RDV (Fait) → Livré → Payé';
+      if (ctxTitle) ctxTitle.innerHTML = "<strong>📋 Espace Actif : Mon Pipeline Commercial</strong> — Gérez vos prospects mis de côté : contactez-les, notez les RDV (RDV Fait), suivez les livraisons, les paiements (FCFA) et les échecs.";
+      if (quickGoBtn) {
+        quickGoBtn.textContent = '🔍 Retour au Radar de Scan';
+        quickGoBtn.setAttribute('onclick', "switchAppView('scanner')");
+      }
     } else {
       if (secAcq) secAcq.style.display = 'block';
       if (secOff) secOff.style.display = 'block';
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'grid';
       if (crmStrip) crmStrip.style.display = 'grid';
+      if (finBanner) finBanner.style.display = 'grid';
+      if (toggleBar) toggleBar.style.display = 'flex';
+      if (badgeEl) badgeEl.textContent = 'VUE GLOBALE';
+      if (headEl) headEl.textContent = 'Radar de Scan & Pipeline Commercial Complet';
       if (ctxTitle) ctxTitle.innerHTML = "<strong>🏠 Espace Actif : Vue Globale SaaS</strong> — Acquisition, Stratégie d'Offre, Diagnostic & Pipeline CRM complet";
     }
+    populateFilterDropdowns();
+    render();
     if (typeof window.scrollTo === 'function') window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -2216,7 +2805,8 @@ INDEX_HTML = """<!DOCTYPE html>
     const encName = safeAttrEnc(b.name || '');
     const encCity = safeAttrEnc(b.city || '');
     const encPhone = safeAttrEnc(b.phone || '');
-    const crmStatus = b.crm_status || 'A_CONTACTER';
+    const stageGroup = normalizeStageGroup(b.crm_status);
+    const inPipe = isLeadInPipeline(b);
 
     let waUrl = '';
     if (b.phone_type === 'MOBILE_WHATSAPP' && b.phone && b.phone !== 'Non renseigné') {
@@ -2224,8 +2814,12 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     const contactActionHtml = waUrl
-      ? `<a id="drawerWaBtn" class="btn btn-wa" href="${waUrl}" target="_blank" onclick="const customTxt=document.getElementById('drawerCustomPitch').value; this.href=buildWhatsAppUrl(decodeURIComponent('${encPhone}'), customTxt);">💬 Envoyer WhatsApp</a>`
-      : (b.tel_url ? `<a class="btn btn-call" href="${b.tel_url}">📞 Appeler</a>` : `<span class="btn btn-reset" style="opacity:0.55; cursor:not-allowed;">📵 Aucun numéro</span>`);
+      ? `<a id="drawerWaBtn" class="btn btn-wa" href="${waUrl}" target="_blank" onclick="const customTxt=document.getElementById('drawerCustomPitch').value; this.href=buildWhatsAppUrl(decodeURIComponent('${encPhone}'), customTxt); setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'));">💬 Envoyer WhatsApp (& Marquer Contacté)</a>`
+      : (b.tel_url ? `<a class="btn btn-call" href="${b.tel_url}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'));">📞 Appeler</a>` : `<span class="btn btn-reset" style="opacity:0.55; cursor:not-allowed;">📵 Aucun numéro</span>`);
+
+    const rdvToggleDrawerHtml = stageGroup === 'CLIENT'
+      ? `<div style="margin-top:10px;"><button type="button" class="btn-stage-action btn-stage-rdv-check ${b.rdv_done ? 'done' : ''}" style="width:100%;" onclick="toggleLeadRdvDone(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">${b.rdv_done ? '☑️ Rendez-vous Fait ! (Validé)' : '⬜ Cliquer ici quand le Rendez-vous est Fait'}</button></div>`
+      : '';
 
     const bodyEl = document.getElementById('drawerBodyContent');
     bodyEl.innerHTML = `<div class="drawer-section"><div class="drawer-section-title"><span>📊 Diagnostic Technique Complet</span><span class="status-pill st-${b.status}">${(b.status || '').replace('_', ' ')}</span></div>` +
@@ -2234,14 +2828,22 @@ INDEX_HTML = """<!DOCTYPE html>
       `<div class="diag-item"><span class="diag-lbl">Temps de Réponse HTTP</span><span class="diag-val">${b.response_ms ? b.response_ms + ' ms' : 'Non mesuré / Sans site'}</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Pixel Meta (Facebook Ads)</span><span class="diag-val" style="color:${b.has_fb_pixel ? '#6ee7b7' : '#fca5a5'}">${b.has_fb_pixel ? '✅ Détecté' : '❌ Absent'}</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Google Analytics / Tag</span><span class="diag-val" style="color:${b.has_google_analytics ? '#6ee7b7' : '#fca5a5'}">${b.has_google_analytics ? '✅ Détecté' : '❌ Absent'}</span></div>` +
-      `<div class="diag-item"><span class="diag-lbl">Téléphone & Canal</span><span class="diag-val">📞 ${escapeHtml(b.phone || 'Non renseigné')}</span></div>` +
+      `<div class="diag-item"><span class="diag-lbl">Téléphone & Email</span><span class="diag-val">📞 ${escapeHtml(b.phone || 'Non renseigné')}${b.email ? ' • ✉️ ' + escapeHtml(b.email) : ''}</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Site Web Officiel</span><span class="diag-val">${fullUrl ? `<a href="${fullUrl}" target="_blank" style="color:#60a5fa;">🌐 ${escapeHtml(shortDomain(b.website))}</a>` : '❌ Aucun site web'}</span></div>` +
       `</div><div class="issues" style="margin-top:12px;">${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${escapeHtml(iss)}</span>`).join('') || '<span style="font-size:0.78rem; color:var(--muted);">Aucun problème critique signalé.</span>'}</div></div>` +
-      `<div class="drawer-section"><div class="drawer-section-title"><span>📋 Étape Pipeline CRM</span></div><div class="crm-bar" style="margin-top:0;">` +
-      `<button type="button" class="crm-pill crm-a-contacter ${crmStatus === 'A_CONTACTER' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'A_CONTACTER', decodeURIComponent('${encCity}'))">⚪ À contacter</button>` +
-      `<button type="button" class="crm-pill crm-contacte ${crmStatus === 'CONTACTE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">🟡 Contacté</button>` +
-      `<button type="button" class="crm-pill crm-client ${crmStatus === 'CLIENT' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">🟢 RDV / Client</button>` +
-      `<button type="button" class="crm-pill crm-ignore ${crmStatus === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">🔴 Ignorer</button>` +
+      `<div class="drawer-section"><div class="drawer-section-title"><span>📋 Étape Pipeline Commercial (6 Étapes)</span><span style="font-size:0.7rem; color:#93c5fd;">${inPipe ? '📌 Dans Mon Pipeline (' + formatRelativeTime(b.updated_at) + ')' : '🔍 Non classé'}</span></div>` +
+      `${!inPipe ? `<button type="button" class="btn-add-pipeline" style="width:100%; margin-bottom:10px;" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter » (Mon Pipeline)</button>` : ''}` +
+      `<div class="crm-bar" style="margin-top:0;">` +
+      `<button type="button" class="crm-pill crm-a-contacter ${inPipe && stageGroup === 'A_CONTACTER' ? 'active' : ''}" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">📥 1. À contacter</button>` +
+      `<button type="button" class="crm-pill crm-contacte ${stageGroup === 'CONTACTE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">⏳ 2. Contacté</button>` +
+      `<button type="button" class="crm-pill crm-client ${stageGroup === 'CLIENT' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">📅 3. RDV</button>` +
+      `<button type="button" class="crm-pill crm-livre ${stageGroup === 'LIVRE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'LIVRE', decodeURIComponent('${encCity}'))">🛠️ 4. Livré</button>` +
+      `<button type="button" class="crm-pill crm-paye ${stageGroup === 'PAYE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'PAYE', decodeURIComponent('${encCity}'))">💰 5. Payé</button>` +
+      `<button type="button" class="crm-pill crm-ignore ${stageGroup === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ 6. Échec</button>` +
+      `</div>${rdvToggleDrawerHtml}` +
+      `<div class="pipeline-meta-grid" style="margin-top:12px;">` +
+      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" /></div>` +
+      `<div class="meta-input-group"><label>📝 Notes & Suivi client</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par pack Web..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div></div>` +
       `<div class="drawer-section"><div class="drawer-section-title"><span>💬 Studio Pitch Commercial (${escapeHtml(CURRENT_OFFER)})</span></div>` +
       `<div style="display:flex; gap:6px; margin-bottom:10px;">` +
@@ -2260,23 +2862,145 @@ INDEX_HTML = """<!DOCTYPE html>
     document.getElementById('kpiWeak').textContent = LEADS.filter(b => b.status === 'SITE_FAIBLE').length;
     document.getElementById('kpiNoSite').textContent = LEADS.filter(b => b.status === 'SANS_SITE').length;
 
+    const pipeLeads = LEADS.filter(isLeadInPipeline);
+    const todoLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'A_CONTACTER');
+    const contacteLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CONTACTE');
+    const rdvLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'CLIENT');
+    const livreLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'LIVRE');
+    const payeLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'PAYE');
+    const ignoreLeads = pipeLeads.filter(b => normalizeStageGroup(b.crm_status) === 'IGNORE');
+
     const cAll = document.getElementById('crmCount_ALL');
-    if (cAll) cAll.textContent = LEADS.length;
+    if (cAll) cAll.textContent = pipeLeads.length;
     const cAC = document.getElementById('crmCount_A_CONTACTER');
-    if (cAC) cAC.textContent = LEADS.filter(b => (b.crm_status || 'A_CONTACTER') === 'A_CONTACTER').length;
+    if (cAC) cAC.textContent = todoLeads.length;
     const cCo = document.getElementById('crmCount_CONTACTE');
-    if (cCo) cCo.textContent = LEADS.filter(b => b.crm_status === 'CONTACTE').length;
+    if (cCo) cCo.textContent = contacteLeads.length;
     const cCl = document.getElementById('crmCount_CLIENT');
-    if (cCl) cCl.textContent = LEADS.filter(b => b.crm_status === 'CLIENT').length;
+    if (cCl) cCl.textContent = rdvLeads.length;
+    const cLi = document.getElementById('crmCount_LIVRE');
+    if (cLi) cLi.textContent = livreLeads.length;
+    const cPa = document.getElementById('crmCount_PAYE');
+    if (cPa) cPa.textContent = payeLeads.length;
     const cIg = document.getElementById('crmCount_IGNORE');
-    if (cIg) cIg.textContent = LEADS.filter(b => b.crm_status === 'IGNORE').length;
+    if (cIg) cIg.textContent = ignoreLeads.length;
+
+    const paidTotalFcfa = payeLeads.reduce((acc, b) => acc + (parseInt(b.deal_amount || 0, 10) || 0), 0);
+    const pendingTotalFcfa = [...rdvLeads, ...livreLeads].reduce((acc, b) => acc + (parseInt(b.deal_amount || 0, 10) || 0), 0);
+
+    const finPaidEl = document.getElementById('finPaidTotal');
+    if (finPaidEl) finPaidEl.textContent = formatFcfa(paidTotalFcfa);
+    const finPaidCntEl = document.getElementById('finPaidCount');
+    if (finPaidCntEl) finPaidCntEl.textContent = `${payeLeads.length} affaire(s) conclue(s) et payée(s)`;
+
+    const finPendEl = document.getElementById('finPendingTotal');
+    if (finPendEl) finPendEl.textContent = formatFcfa(pendingTotalFcfa);
+    const finPendCntEl = document.getElementById('finPendingCount');
+    if (finPendCntEl) finPendCntEl.textContent = `${livreLeads.length} livré(s) • ${rdvLeads.length} en RDV`;
+
+    const finActEl = document.getElementById('finActiveCount');
+    if (finActEl) finActEl.textContent = pipeLeads.length;
+    const finTodoEl = document.getElementById('finTodoCount');
+    if (finTodoEl) finTodoEl.textContent = `📥 ${todoLeads.length} à contacter • ⏳ ${contacteLeads.length} contacté(s)`;
 
     const navAll = document.getElementById('navCountAll');
     if (navAll) navAll.textContent = LEADS.length;
     const navCrm = document.getElementById('navCountCrm');
-    if (navCrm) {
-      navCrm.textContent = LEADS.filter(b => b.crm_status === 'CONTACTE' || b.crm_status === 'CLIENT').length;
+    if (navCrm) navCrm.textContent = pipeLeads.length;
+
+    const knownSummaryEl = document.getElementById('radarKnownSummaryText');
+    if (knownSummaryEl) {
+      knownSummaryEl.textContent = pipeLeads.length > 0
+        ? `📌 ${pipeLeads.length} entreprise(s) déjà enregistrée(s) dans ton Pipeline / Échecs`
+        : `Aucune entreprise dans ton Pipeline pour l'instant`;
     }
+  }
+
+  function buildRadarMemoryBannerHtml(b, encName, encCity) {
+    const stageGroup = normalizeStageGroup(b.crm_status);
+    const relTime = formatRelativeTime(b.updated_at);
+    const amtTxt = b.deal_amount ? ` • 💵 ${formatFcfa(b.deal_amount)}` : '';
+    const noteTxt = b.notes ? ` • 📝 « ${escapeHtml(b.notes)} »` : '';
+    let label = '';
+    let cssClass = 'mem-A_CONTACTER';
+
+    if (stageGroup === 'A_CONTACTER') {
+      label = `📌 Déjà dans ta liste : À CONTACTER (${relTime})${amtTxt}${noteTxt}`;
+      cssClass = 'mem-A_CONTACTER';
+    } else if (stageGroup === 'CONTACTE') {
+      label = `⏳ Déjà contacté — En attente de réponse (${relTime})${amtTxt}${noteTxt}`;
+      cssClass = 'mem-CONTACTE';
+    } else if (stageGroup === 'CLIENT') {
+      label = `📅 En Rendez-vous ${b.rdv_done ? '• ☑️ RDV FAIT' : '• ⏳ RDV à faire'} (${relTime})${amtTxt}${noteTxt}`;
+      cssClass = 'mem-CLIENT';
+    } else if (stageGroup === 'LIVRE') {
+      label = `🛠️ Projet Livré — En attente de paiement (${relTime})${amtTxt}${noteTxt}`;
+      cssClass = 'mem-LIVRE';
+    } else if (stageGroup === 'PAYE') {
+      label = `💰 Affaire déjà conclue & Payée ! (${relTime})${amtTxt}${noteTxt}`;
+      cssClass = 'mem-PAYE';
+    } else if (stageGroup === 'IGNORE') {
+      label = `❌ Déjà tenté : Échec / Sans suite (${relTime})${noteTxt}`;
+      cssClass = 'mem-IGNORE';
+    }
+
+    const actionRight = stageGroup === 'IGNORE'
+      ? `<button type="button" class="btn btn-reset" style="width:auto; min-height:34px; padding:5px 12px; font-size:0.75rem;" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔄 Remettre dans À contacter</button>`
+      : `<button type="button" class="btn btn-reset" style="width:auto; min-height:34px; padding:5px 12px; font-size:0.75rem; border-color:currentColor;" onclick="openLeadInPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">📂 Gérer dans Mon Pipeline →</button>`;
+
+    return `<div class="pipeline-memory-banner ${cssClass}"><span>${label}</span>${actionRight}</div>`;
+  }
+
+  function buildPipelineStageBoxHtml(b, encName, encCity, dynamicWaUrl) {
+    const stageGroup = normalizeStageGroup(b.crm_status);
+    const relTime = formatRelativeTime(b.updated_at);
+    let stageHeader = '';
+    let stageBtns = '';
+
+    if (stageGroup === 'A_CONTACTER') {
+      stageHeader = `<span>📥 Étape 1 : À contacter — Ajouté ${escapeHtml(relTime)}</span>`;
+      const waStepBtn = dynamicWaUrl
+        ? `<a class="btn-stage-action btn-wa" href="${dynamicWaUrl}" target="_blank" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">💬 Contacter sur WhatsApp (& Passer en Contacté)</a>`
+        : '';
+      stageBtns = `${waStepBtn}` +
+        `<button type="button" class="btn-stage-action btn-stage-contacte" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">📨 Marquer comme « Déjà contacté » →</button>` +
+        `<button type="button" class="btn-stage-action btn-stage-echec" style="flex:0 0 auto;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ Échec</button>`;
+    } else if (stageGroup === 'CONTACTE') {
+      stageHeader = `<span>⏳ Étape 2 : Déjà contacté (${escapeHtml(relTime)}) — Quel est le résultat ?</span>`;
+      stageBtns = `<button type="button" class="btn-stage-action btn-stage-rdv" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">📅 Rendez-vous décroché !</button>` +
+        `<button type="button" class="btn-stage-action btn-stage-echec" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ Échec / Sans suite</button>`;
+    } else if (stageGroup === 'CLIENT') {
+      stageHeader = `<span>📅 Étape 3 : Rendez-vous (${escapeHtml(relTime)}) — Validez le RDV puis livrez :</span>`;
+      stageBtns = `<button type="button" class="btn-stage-action btn-stage-rdv-check ${b.rdv_done ? 'done' : ''}" onclick="toggleLeadRdvDone(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">${b.rdv_done ? '☑️ RDV Fait ! (Validé)' : '⬜ Marquer « RDV Fait »'}</button>` +
+        `<button type="button" class="btn-stage-action btn-stage-livre" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'LIVRE', decodeURIComponent('${encCity}'))">🛠️ Passer en « Livré » →</button>` +
+        `<button type="button" class="btn-stage-action btn-stage-echec" style="flex:0 0 auto;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ Échec</button>`;
+    } else if (stageGroup === 'LIVRE') {
+      stageHeader = `<span>🛠️ Étape 4 : Projet Livré (${escapeHtml(relTime)}) — En attente du paiement :</span>`;
+      stageBtns = `<button type="button" class="btn-stage-action btn-stage-paye" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'PAYE', decodeURIComponent('${encCity}'))">💰 Marquer comme « Payé & Encaissé ! »</button>` +
+        `<button type="button" class="btn-stage-action btn-stage-echec" style="flex:0 0 auto;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">↩️ Retour RDV</button>`;
+    } else if (stageGroup === 'PAYE') {
+      stageHeader = `<span style="color:#6ee7b7;">🎉 Étape 5 : Affaire conclue, livrée & Payée (${escapeHtml(relTime)}) !</span>`;
+      stageBtns = `<span class="status-pill st-SITE_OK" style="padding:8px 14px; font-size:0.82rem;">💰 Encaissé : ${formatFcfa(b.deal_amount || 0)}</span>`;
+    } else {
+      stageHeader = `<span style="color:#fca5a5;">❌ Étape 6 : Échec / Sans suite (${escapeHtml(relTime)})</span>`;
+      stageBtns = `<button type="button" class="btn-stage-action btn-stage-contacte" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔄 Repêcher → Remettre dans « À contacter »</button>`;
+    }
+
+    const sixPillsHtml = `<div class="crm-bar" role="group" aria-label="Statut CRM">` +
+      `<button type="button" class="crm-pill crm-a-contacter ${stageGroup === 'A_CONTACTER' ? 'active' : ''}" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">📥 À contacter</button>` +
+      `<button type="button" class="crm-pill crm-contacte ${stageGroup === 'CONTACTE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">⏳ Contacté</button>` +
+      `<button type="button" class="crm-pill crm-client ${stageGroup === 'CLIENT' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">📅 RDV ${b.rdv_done ? '☑️' : ''}</button>` +
+      `<button type="button" class="crm-pill crm-livre ${stageGroup === 'LIVRE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'LIVRE', decodeURIComponent('${encCity}'))">🛠️ Livré</button>` +
+      `<button type="button" class="crm-pill crm-paye ${stageGroup === 'PAYE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'PAYE', decodeURIComponent('${encCity}'))">💰 Payé</button>` +
+      `<button type="button" class="crm-pill crm-ignore ${stageGroup === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ Échec</button>` +
+      `</div>`;
+
+    const metaInputsHtml = `<div class="pipeline-meta-grid">` +
+      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000 FCFA" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" /></div>` +
+      `<div class="meta-input-group"><label>📝 Note / Suivi / Relance</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par site vitrine..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
+      `</div>`;
+
+    return `<div class="pipeline-stage-box"><div class="pipeline-stage-header">${stageHeader}</div><div class="pipeline-next-btns">${stageBtns}</div>${sixPillsHtml}${metaInputsHtml}</div>`;
   }
 
   function render() {
@@ -2287,14 +3011,36 @@ INDEX_HTML = """<!DOCTYPE html>
     const st = document.getElementById('statusFilter').value || 'ALL';
     const sec = document.getElementById('sectorFilter').value || 'ALL';
     const pf = document.getElementById('phoneFilter').value || 'ALL';
+    const hideKnownEl = document.getElementById('hideKnownLeadsToggle');
+    const hideKnown = Boolean(hideKnownEl && hideKnownEl.checked && CURRENT_VIEW !== 'crm');
     const container = document.getElementById('leadContainer');
 
     highlightActiveKpi(st);
     highlightActiveCrmStage(crmf);
 
     const filtered = LEADS.filter(item => {
+      const inPipe = isLeadInPipeline(item);
+      const stageGroup = normalizeStageGroup(item.crm_status);
+
+      // In Mon Pipeline Commercial view, only show leads that have entered the pipeline
+      if (CURRENT_VIEW === 'crm' && !inPipe) return false;
+
+      // In Radar de Scan view, if "Masquer ceux déjà dans mon Pipeline" is checked, hide known leads
+      if (hideKnown && inPipe) return false;
+
       if (cf !== 'ALL' && item.city !== cf) return false;
-      if (crmf !== 'ALL' && (item.crm_status || 'A_CONTACTER') !== crmf) return false;
+      if (crmf !== 'ALL') {
+        const targetGroup = normalizeStageGroup(crmf);
+        if (CURRENT_VIEW === 'crm') {
+          if (stageGroup !== targetGroup) return false;
+        } else {
+          if (crmf === 'A_CONTACTER') {
+            if (stageGroup !== 'A_CONTACTER') return false;
+          } else if (stageGroup !== targetGroup) {
+            return false;
+          }
+        }
+      }
       if (st === 'HAS_FACEBOOK') {
         if (!item.facebook_url) return false;
       } else if (st !== 'ALL' && item.status !== st) return false;
@@ -2303,6 +3049,7 @@ INDEX_HTML = """<!DOCTYPE html>
       if (q) {
         const hay = (
           item.name + ' ' + item.neighborhood + ' ' + item.sector + ' ' + item.phone + ' ' +
+          (item.email || '') + ' ' + (item.notes || '') + ' ' +
           (item.crm_status || 'A_CONTACTER') + ' ' + (item.website || '') + ' ' +
           (item.facebook_url || '') + ' ' + (item.issues || []).join(' ')
         ).toLowerCase();
@@ -2311,10 +3058,17 @@ INDEX_HTML = """<!DOCTYPE html>
       return true;
     });
 
-    document.getElementById('filterCountText').textContent = `${filtered.length} sur ${LEADS.length} entreprises affichées`;
+    const totalScope = CURRENT_VIEW === 'crm' ? LEADS.filter(isLeadInPipeline).length : LEADS.length;
+    document.getElementById('filterCountText').textContent = CURRENT_VIEW === 'crm'
+      ? `${filtered.length} sur ${totalScope} prospect(s) de Mon Pipeline affichés`
+      : `${filtered.length} sur ${LEADS.length} entreprises affichées dans le Radar`;
 
     if (filtered.length === 0) {
-      container.innerHTML = `<div class="empty-box"><p style="font-size:0.95rem; font-weight:700; margin-bottom:6px;">Aucun résultat pour ce filtre.</p><p style="font-size:0.8rem; margin-bottom:12px;">Réinitialise les filtres ou lance un scan sur ce secteur en haut.</p><button class="btn btn-reset" style="max-width:220px;" onclick="resetFilters()">🔄 Réinitialiser</button></div>`;
+      if (CURRENT_VIEW === 'crm' && totalScope === 0) {
+        container.innerHTML = `<div class="empty-box"><p style="font-size:1rem; font-weight:800; color:#fff; margin-bottom:6px;">📭 Ton Pipeline Commercial est vide pour le moment.</p><p style="font-size:0.84rem; margin-bottom:14px;">Va dans le <strong>Radar de Scan</strong> et appuie sur le bouton <strong>« ➕ Mettre dans À contacter »</strong> sur les entreprises qui t'intéressent pour les retrouver ici !</p><button class="btn btn-primary" style="max-width:280px;" onclick="switchAppView('scanner')">🔍 Aller au Radar de Scan</button></div>`;
+      } else {
+        container.innerHTML = `<div class="empty-box"><p style="font-size:0.95rem; font-weight:700; margin-bottom:6px;">Aucun résultat pour ce filtre.</p><p style="font-size:0.8rem; margin-bottom:12px;">Réinitialise les filtres ou change d'onglet CRM en haut.</p><button class="btn btn-reset" style="max-width:220px;" onclick="resetFilters()">🔄 Réinitialiser les filtres</button></div>`;
+      }
       return;
     }
 
@@ -2333,6 +3087,9 @@ INDEX_HTML = """<!DOCTYPE html>
       const currentPitch = generatePitch(b, CURRENT_OFFER);
       b.pitch = currentPitch;
 
+      const encName = safeAttrEnc(b.name || '');
+      const encCity = safeAttrEnc(b.city || '');
+
       let dynamicWaUrl = '';
       if (b.phone_type === 'MOBILE_WHATSAPP' && b.phone && b.phone !== 'Non renseigné') {
         dynamicWaUrl = buildWhatsAppUrl(b.phone, currentPitch);
@@ -2340,32 +3097,40 @@ INDEX_HTML = """<!DOCTYPE html>
       }
 
       const contactBtn = dynamicWaUrl
-        ? `<a class="btn btn-wa" href="${dynamicWaUrl}" target="_blank">💬 WhatsApp</a>`
-        : (b.tel_url ? `<a class="btn btn-call" href="${b.tel_url}">📞 Appeler</a>` : '');
+        ? `<a class="btn btn-wa" href="${dynamicWaUrl}" target="_blank" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">💬 WhatsApp Direct</a>`
+        : (b.tel_url ? `<a class="btn btn-call" href="${b.tel_url}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">📞 Appeler</a>` : '');
       const fbBtn = b.facebook_url ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Facebook</a>` : '';
       const copyBtn = `<button class="btn btn-copy" onclick="copyPitchText(this, decodeURIComponent('${safeAttrEnc(currentPitch)}'))">📋 Copier Pitch</button>`;
       const mapsUrl = b.maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.name + ' ' + (b.city && b.city !== 'Audit Direct' ? b.city : 'Burkina Faso'))}`;
       const mapsBtn = `<a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>`;
 
       const shortSector = SECTOR_LABELS[b.sector_key] || b.sector;
-      const crmStatus = b.crm_status || 'A_CONTACTER';
-      const cardClass = `lead-card accent-${b.status || 'SANS_SITE'}${crmStatus === 'IGNORE' ? ' crm-state-IGNORE' : ''}`;
-      const encName = safeAttrEnc(b.name || '');
-      const encCity = safeAttrEnc(b.city || '');
+      const stageGroup = normalizeStageGroup(b.crm_status);
+      const inPipe = isLeadInPipeline(b);
+      const cardClass = `lead-card accent-${b.status || 'SANS_SITE'}${stageGroup === 'IGNORE' ? ' crm-state-IGNORE' : ''}`;
+      const emailChip = b.email ? `<span class="meta-item">✉️ <strong>${escapeHtml(b.email)}</strong></span>` : '';
 
-      const crmBarHtml = `<div class="crm-bar" role="group" aria-label="Statut CRM">` +
-        `<button type="button" class="crm-pill crm-a-contacter ${crmStatus === 'A_CONTACTER' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'A_CONTACTER', decodeURIComponent('${encCity}'))">⚪ À contacter</button>` +
-        `<button type="button" class="crm-pill crm-contacte ${crmStatus === 'CONTACTE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CONTACTE', decodeURIComponent('${encCity}'))">🟡 Contacté</button>` +
-        `<button type="button" class="crm-pill crm-client ${crmStatus === 'CLIENT' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'CLIENT', decodeURIComponent('${encCity}'))">🟢 RDV / Client</button>` +
-        `<button type="button" class="crm-pill crm-ignore ${crmStatus === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">🔴 Ignorer</button></div>`;
+      let workflowZoneHtml = '';
+      if (CURRENT_VIEW === 'crm') {
+        workflowZoneHtml = buildPipelineStageBoxHtml(b, encName, encCity, dynamicWaUrl);
+      } else {
+        if (inPipe) {
+          workflowZoneHtml = buildRadarMemoryBannerHtml(b, encName, encCity);
+        } else {
+          workflowZoneHtml = `<div class="scan-triage-bar">` +
+            `<button type="button" class="btn-add-pipeline" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter »</button>` +
+            `<button type="button" class="btn btn-reset" style="width:auto; min-height:42px; padding:8px 12px; font-size:0.75rem; color:#fca5a5; border-color:rgba(239,68,68,0.35);" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))" title="Ignorer ce résultat">🚫 Ignorer</button>` +
+            `</div>`;
+        }
+      }
 
       return `<div class="${cardClass}"><div><div class="card-top">` +
         `<div class="score-badge" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))" title="Ouvrir la fiche détaillée"><span class="score-num" style="color:${scoreColor}">${b.score}</span><span class="score-lbl">Score</span></div>` +
         `<div class="title-wrap"><div class="biz-name-row"><span class="biz-name" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))" title="Cliquer pour entrer dans la fiche complète">${escapeHtml(b.name)}</span>` +
-        `<button type="button" class="btn-open-detail" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔎 Fiche & Audit</button></div>` +
+        `<button type="button" class="btn-open-detail" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔎 Fiche & Suivi</button></div>` +
         `<div class="badges-row"><span class="status-pill st-${b.status}">${b.status.replace('_', ' ')}${speedTag}</span>${phoneLabel}${pixelBadge}${gaBadge}</div></div></div>` +
-        `${crmBarHtml}` +
-        `<div class="meta-chips"><span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${escapeHtml(b.city)} (${escapeHtml(b.neighborhood)})</a></span><span class="meta-item">${escapeHtml(shortSector)}</span><span class="meta-item">📞 <strong>${escapeHtml(b.phone)}</strong></span><span class="meta-item">${siteHtml}</span></div>` +
+        `${workflowZoneHtml}` +
+        `<div class="meta-chips"><span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${escapeHtml(b.city)} (${escapeHtml(b.neighborhood)})</a></span><span class="meta-item">${escapeHtml(shortSector)}</span><span class="meta-item">📞 <strong>${escapeHtml(b.phone)}</strong></span>${emailChip}<span class="meta-item">${siteHtml}</span></div>` +
         `<div class="issues">${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${escapeHtml(iss)}</span>`).join('')}</div>` +
         `<div class="pitch-box"><strong>Pitch (${escapeHtml(CURRENT_OFFER)}) :</strong> ${escapeHtml(currentPitch)}</div></div>` +
         `<div class="actions">${contactBtn}${mapsBtn}${fbBtn}${copyBtn}</div></div>`;
@@ -2421,47 +3186,83 @@ class ProspectHandler(BaseHTTPRequestHandler):
             body = {}
 
         if parsed.path in ("/api/leads/status", "/api/leads/crm"):
-            VALID_CRM_STATUSES = {"A_CONTACTER", "CONTACTE", "CLIENT", "IGNORE"}
+            import datetime
             name = str(body.get("name", "") or "").strip()
             city = str(body.get("city", "") or "").strip()
+            has_crm_key = "crm_status" in body
             new_status = body.get("crm_status")
+            has_meta_keys = any(k in body for k in ("in_pipeline", "rdv_done", "deal_amount", "notes"))
 
             if not name or not city:
                 self._send_json({"error": "Nom et ville requis"}, status=400)
                 return
 
-            if not isinstance(new_status, str) or new_status not in VALID_CRM_STATUSES:
-                self._send_json({"error": f"Statut CRM invalide: {new_status}"}, status=400)
-                return
+            if has_crm_key or not has_meta_keys:
+                if not isinstance(new_status, str) or new_status not in VALID_CRM_STATUSES:
+                    self._send_json({"error": f"Statut CRM invalide: {new_status}"}, status=400)
+                    return
+
+            now_iso = str(body.get("updated_at") or datetime.datetime.now(datetime.timezone.utc).isoformat())
 
             with STATE_LOCK:
                 current = load_saved_leads()
                 norm_name = name.lower()
                 norm_city = city.lower()
-                matched = False
+                target_lead = None
                 for lead in current:
                     l_name = str(lead.get("name", "")).strip().lower()
                     l_city = str(lead.get("city", "")).strip().lower()
                     if l_name == norm_name and (l_city == norm_city or not l_city or not norm_city):
-                        lead["crm_status"] = new_status
-                        matched = True
+                        target_lead = lead
                         break
-                if not matched:
+
+                if target_lead is None:
                     from urllib.parse import quote_plus
                     loc = city if city != "Audit Direct" else "Burkina Faso"
                     q = quote_plus(f"{name} {loc}".strip())
-                    new_lead = {
+                    target_lead = {
                         "name": name,
                         "city": city,
-                        "crm_status": new_status,
+                        "crm_status": new_status if isinstance(new_status, str) else "A_CONTACTER",
+                        "in_pipeline": True,
+                        "rdv_done": False,
+                        "deal_amount": 0,
+                        "notes": "",
+                        "updated_at": now_iso,
                         "has_fb_pixel": False,
                         "has_google_analytics": False,
                         "maps_url": f"https://www.google.com/maps/search/?api=1&query={q}",
                     }
-                    current.append(new_lead)
+                    current.append(target_lead)
+
+                if isinstance(new_status, str) and new_status in VALID_CRM_STATUSES:
+                    target_lead["crm_status"] = new_status
+                    if "in_pipeline" not in body:
+                        target_lead["in_pipeline"] = new_status != "NOUVEAU"
+
+                if "in_pipeline" in body:
+                    target_lead["in_pipeline"] = bool(body.get("in_pipeline"))
+                if "rdv_done" in body:
+                    target_lead["rdv_done"] = bool(body.get("rdv_done"))
+                if "deal_amount" in body:
+                    target_lead["deal_amount"] = _safe_int_amount(body.get("deal_amount", 0))
+                if "notes" in body:
+                    target_lead["notes"] = str(body.get("notes") or "").strip()
+                target_lead["updated_at"] = now_iso
+
                 save_leads(current)
 
-            self._send_json({"ok": True, "name": name, "city": city, "crm_status": new_status})
+            self._send_json({
+                "ok": True,
+                "name": name,
+                "city": city,
+                "crm_status": target_lead.get("crm_status", "A_CONTACTER"),
+                "in_pipeline": bool(target_lead.get("in_pipeline", True)),
+                "rdv_done": bool(target_lead.get("rdv_done", False)),
+                "deal_amount": _safe_int_amount(target_lead.get("deal_amount", 0)),
+                "notes": str(target_lead.get("notes") or ""),
+                "updated_at": target_lead.get("updated_at", now_iso),
+            })
             return
 
         if parsed.path == "/api/clear":
