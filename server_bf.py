@@ -134,8 +134,19 @@ def load_saved_leads() -> list[dict]:
 
 
 def save_leads(leads_dicts: list[dict]) -> None:
+    import os
     with STATE_LOCK:
-        STATE_FILE.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+        temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.tmp")
+        try:
+            temp_file.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+            os.replace(temp_file, STATE_FILE)
+        except Exception:
+            STATE_FILE.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except Exception:
+                    pass
 
 
 def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
@@ -2083,6 +2094,147 @@ INDEX_HTML = """<!DOCTYPE html>
       border-radius: 4px;
       font-weight: 600;
     }
+
+    /* Modern Floating Toast Notification System (Steve Jobs & Jony Ive) */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+      max-width: calc(100vw - 40px);
+    }
+
+    .toast-item {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      animation: toastSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      max-width: 420px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .toast-item.toast-success { border-left: 4px solid var(--green); }
+    .toast-item.toast-error { border-left: 4px solid var(--red); }
+    .toast-item.toast-info { border-left: 4px solid var(--blue); }
+
+    @keyframes toastSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Executive Engineering Board Footer */
+    .app-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .footer-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+        text-align: left;
+      }
+    }
+
+    .footer-board {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .board-badge {
+      font-size: 0.70rem;
+      font-weight: 800;
+      color: #2563eb;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .board-names {
+      font-size: 0.74rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .footer-shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shortcut-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    kbd {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+      color: #0f172a;
+      font-family: inherit;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 5px;
+    }
+
+    .quick-amount-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .chip-btn-amount {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      font-size: 0.70rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip-btn-amount:hover {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
@@ -2297,6 +2449,11 @@ INDEX_HTML = """<!DOCTYPE html>
           <div class="fin-amount" id="finActiveCount" style="color: #2563eb;">0</div>
           <span class="fin-sub" id="finTodoCount">Dont 0 dans « À contacter »</span>
         </div>
+        <div class="fin-card fin-active" style="border-left-color: #7c3aed;">
+          <span class="fin-title">📊 Conversion & Pipeline Total</span>
+          <div class="fin-amount" id="finConversionRate" style="color: #7c3aed;">0%</div>
+          <span class="fin-sub" id="finPotentialTotal">Pipeline global : 0 FCFA</span>
+        </div>
       </div>
 
       <!-- KPI STRIP (DIAGNOSTIC TECHNIQUE - Affiché dans Radar de Scan) -->
@@ -2446,14 +2603,6 @@ INDEX_HTML = """<!DOCTYPE html>
 
         <div id="activeFiltersSummary" class="active-filters-banner"></div>
       </div>
-        <div id="radarMemoryToggleBar" class="radar-memory-toggle-bar">
-          <label class="toggle-known-label" for="hideKnownLeadsToggle">
-            <input type="checkbox" id="hideKnownLeadsToggle" onchange="render()" />
-            <span>🙈 Masquer ceux déjà dans mon Pipeline / Échecs (Ne voir que les nouveaux)</span>
-          </label>
-          <span id="radarKnownSummaryText" style="font-size:0.76rem; color:var(--muted);"></span>
-        </div>
-      </div>
 
       <div class="filter-summary">
         <span id="filterCountText" style="font-weight:700;">Chargement...</span>
@@ -2465,6 +2614,24 @@ INDEX_HTML = """<!DOCTYPE html>
 
       <div id="leadContainer" class="lead-list"></div>
     </section>
+
+    <!-- EXECUTIVE ENGINEERING BOARD & SHORTCUTS FOOTER -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <div class="footer-board">
+          <span class="board-badge">🚀 Titan Executive Board — Conçu & Optimisé par l'Élite</span>
+          <span class="board-names">Elon Musk (CEO • Simplicité & Vitesse) • Steve Jobs (Design & Tactile) • Jensen Huang (Compute & Temps Réel) • Mark Zuckerberg (WhatsApp & Social) • Guido van Rossum (Architecture Python) • Sam Altman (Conversion SaaS) • Dario Amodei (Sécurité & Évaluation) • Sir Jonathan Ive (Pixel-Perfection) • Linus Torvalds (Robustesse Noyau)</span>
+        </div>
+        <div class="footer-shortcuts">
+          <span class="shortcut-tag"><kbd>/</kbd> Rechercher</span>
+          <span class="shortcut-tag"><kbd>Esc</kbd> Fermer / Reset</span>
+          <span class="shortcut-tag"><kbd>1</kbd> Radar</span>
+          <span class="shortcut-tag"><kbd>2</kbd> Pipeline</span>
+          <span class="shortcut-tag"><kbd>3</kbd> Offres</span>
+          <span class="shortcut-tag"><kbd>4</kbd> Global</span>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <!-- SLIDE-OVER LEAD DETAIL MODAL ("Rentrer dans la fiche complète d'une entreprise") -->
@@ -2482,6 +2649,8 @@ INDEX_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script>
   let LEADS = [];
@@ -2784,22 +2953,57 @@ INDEX_HTML = """<!DOCTYPE html>
     return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(pitch);
   }
 
+  function showToast(msg, type = 'info') {
+    if (typeof document === 'undefined') return;
+    const container = document.getElementById('toastContainer');
+    if (!container || typeof container.appendChild !== 'function') return;
+    try {
+      const toast = document.createElement('div');
+      toast.className = `toast-item toast-${type}`;
+      const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
+      toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(msg)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
+      }, 3000);
+    } catch (e) {}
+  }
+
+  function sharePitch(name, phone, pitch) {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `Proposition B2B — ${name}`,
+        text: pitch,
+        url: buildWhatsAppUrl(phone, pitch)
+      }).catch(() => {});
+    } else {
+      copyPitchText(null, pitch);
+      showToast('📋 Message copié dans le presse-papier !', 'success');
+    }
+  }
+
   function copyPitchText(btn, text) {
     const orig = (btn && btn.textContent && btn.textContent !== '✅ Copié !') ? btn.textContent : '📋 Copier Pitch';
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text);
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+    } else if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {}
     }
     if (btn) {
       btn.textContent = '✅ Copié !';
       setTimeout(() => { btn.textContent = orig; }, 1500);
     }
+    showToast('📋 Pitch copié dans le presse-papier !', 'success');
   }
 
   let CURRENT_VIEW = 'scanner';
@@ -3148,11 +3352,14 @@ INDEX_HTML = """<!DOCTYPE html>
 
   function showBanner(msg, isError = false) {
     const b = document.getElementById('statusBanner');
-    b.style.display = 'block';
-    b.style.borderColor = isError ? '#fecaca' : '#bfdbfe';
-    b.style.background = isError ? '#fef2f2' : '#eff6ff';
-    b.style.color = isError ? '#b91c1c' : '#1d4ed8';
-    b.textContent = msg;
+    if (b) {
+      b.style.display = 'block';
+      b.style.borderColor = isError ? '#fecaca' : '#bfdbfe';
+      b.style.background = isError ? '#fef2f2' : '#eff6ff';
+      b.style.color = isError ? '#b91c1c' : '#1d4ed8';
+      b.textContent = msg;
+    }
+    showToast(msg, isError ? 'error' : 'success');
   }
 
   function highlightActiveKpi(st) {
@@ -3765,7 +3972,8 @@ INDEX_HTML = """<!DOCTYPE html>
       `<button type="button" class="crm-pill crm-ignore ${stageGroup === 'IGNORE' ? 'active' : ''}" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))">❌ 6. Échec</button>` +
       `</div>${rdvToggleDrawerHtml}` +
       `<div class="pipeline-meta-grid" style="margin-top:12px;">` +
-      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" /></div>` +
+      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" />` +
+      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})">+50k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})">+100k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})">+150k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})">+250k</button></div></div>` +
       `<div class="meta-input-group"><label>📝 Notes & Suivi client</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par pack Web..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div></div>` +
       `<div class="drawer-section"><div class="drawer-section-title"><span>💬 Studio Copywriting & Psychologie de Vente</span><span id="drawerPitchStats" class="pitch-stats-badge">${pitchStatsText}</span></div>` +
@@ -3790,7 +3998,7 @@ INDEX_HTML = """<!DOCTYPE html>
       `<button type="button" id="btnStage_j8" class="stage-tab-btn ${CURRENT_PITCH_STAGE==='j8'?'active-stage':''}" onclick="setPitchStage('j8')">🚪 J+8 Clôture Polie</button>` +
       `</div>` +
       `<textarea id="drawerCustomPitch" rows="6" style="width:100%; font-size:0.84rem; line-height:1.45; margin-bottom:10px; border-radius:8px;" oninput="const waEl=document.getElementById('drawerWaBtn'); if(waEl) waEl.href=buildWhatsAppUrl(decodeURIComponent('${encPhone}'), this.value);">${escapeHtml(currentPitch)}</textarea>` +
-      `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">${contactActionHtml}<button type="button" class="btn btn-copy" onclick="copyPitchText(this, document.getElementById('drawerCustomPitch').value)">📋 Copier le message</button><a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>${b.facebook_url ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Page Facebook</a>` : ''}</div></div>`;
+      `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">${contactActionHtml}<button type="button" class="btn btn-copy" onclick="copyPitchText(this, document.getElementById('drawerCustomPitch').value)">📋 Copier le message</button><button type="button" class="btn btn-reset" style="border-color:#10b981; color:#047857;" onclick="sharePitch(decodeURIComponent('${encName}'), decodeURIComponent('${encPhone}'), document.getElementById('drawerCustomPitch').value)">📲 Partager</button><a class="btn btn-maps" href="${mapsUrl}" target="_blank">📍 Google Maps</a>${b.facebook_url ? `<a class="btn btn-fb" href="${b.facebook_url}" target="_blank">📘 Page Facebook</a>` : ''}</div></div>`;
   }
 
   function updateKPIs() {
@@ -3845,6 +4053,13 @@ INDEX_HTML = """<!DOCTYPE html>
     if (navAll) navAll.textContent = LEADS.length;
     const navCrm = document.getElementById('navCountCrm');
     if (navCrm) navCrm.textContent = pipeLeads.length;
+
+    const totalPipelineFcfa = pipeLeads.reduce((acc, b) => acc + (parseInt(b.deal_amount || 0, 10) || 0), 0);
+    const winRate = pipeLeads.length > 0 ? Math.round((payeLeads.length / pipeLeads.length) * 100) : 0;
+    const finConvEl = document.getElementById('finConversionRate');
+    if (finConvEl) finConvEl.textContent = `${winRate}% closing`;
+    const finPotEl = document.getElementById('finPotentialTotal');
+    if (finPotEl) finPotEl.textContent = `Pipeline global : ${formatFcfa(totalPipelineFcfa)}`;
 
     const knownSummaryEl = document.getElementById('radarKnownSummaryText');
     if (knownSummaryEl) {
@@ -3934,7 +4149,8 @@ INDEX_HTML = """<!DOCTYPE html>
       `</div>`;
 
     const metaInputsHtml = `<div class="pipeline-meta-grid">` +
-      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000 FCFA" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" /></div>` +
+      `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000 FCFA" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" />` +
+      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})">+50k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})">+100k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})">+150k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})">+250k</button></div></div>` +
       `<div class="meta-input-group"><label>📝 Note / Suivi / Relance</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par site vitrine..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div>`;
 
@@ -4106,7 +4322,52 @@ INDEX_HTML = """<!DOCTYPE html>
     }).join('');
   }
 
-  document.getElementById('searchInput').addEventListener('input', render);
+  function debounce(fn, wait = 100) {
+    let t;
+    return function(...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), wait);
+    };
+  }
+
+  // Keyboard Navigation Shortcuts (Elon Musk & Steve Jobs)
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('keydown', (ev) => {
+      if (!ev) return;
+      if (ev.key === 'Escape') {
+        if (ACTIVE_DETAIL_LEAD) {
+          closeLeadDetail();
+        } else {
+          const s = document.getElementById('searchInput');
+          if (s && document.activeElement === s) {
+            s.value = '';
+            s.blur();
+            render();
+          }
+        }
+        return;
+      }
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      if (!isInput) {
+        if (ev.key === '/') {
+          ev.preventDefault();
+          const s = document.getElementById('searchInput');
+          if (s) { s.focus(); s.select(); }
+        } else if (ev.key === '1') {
+          switchAppView('scanner');
+        } else if (ev.key === '2') {
+          switchAppView('crm');
+        } else if (ev.key === '3') {
+          switchAppView('offers');
+        } else if (ev.key === '4') {
+          switchAppView('all');
+        }
+      }
+    });
+  }
+
+  document.getElementById('searchInput').addEventListener('input', (typeof setTimeout !== 'undefined') ? debounce(render, 100) : render);
   document.getElementById('cityFilter').addEventListener('change', render);
   document.getElementById('crmFilter').addEventListener('change', render);
   document.getElementById('statusFilter').addEventListener('change', () => {
@@ -4142,6 +4403,11 @@ class ProspectHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(raw)
 
@@ -4150,14 +4416,26 @@ class ProspectHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
         self.end_headers()
         self.wfile.write(raw)
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/leads":
             leads = load_saved_leads()
             self._send_json({"leads": leads})
+            return
+        if parsed.path == "/api/health":
+            self._send_json({"status": "ok", "version": "2.7", "engine": "ProspectBF-Titan"})
             return
         self._send_html(INDEX_HTML)
 
