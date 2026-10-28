@@ -983,9 +983,7 @@ def audit_single_business(lead: BusinessLead) -> BusinessLead:
 
 def _attach_whatsapp_link(lead: BusinessLead) -> None:
     if is_likely_mobile_bf(lead.phone_clean):
-        wa_num = lead.phone_clean.lstrip("+")
-        encoded_msg = urllib.parse.quote(lead.pitch_angle)
-        lead.whatsapp_url = f"https://wa.me/{wa_num}?text={encoded_msg}"
+        lead.whatsapp_url = DynamicPitchEngine.build_whatsapp_url(lead.phone_clean, lead.pitch_angle)
 
 
 # ---------------------------------------------------------------------------

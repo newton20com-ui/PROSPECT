@@ -350,5 +350,10 @@ class DynamicPitchEngine:
         digits = "".join(filter(str.isdigit, str(phone_clean or "")))
         if not digits:
             return ""
+        if len(digits) == 8:
+            digits = "226" + digits
+        elif digits.startswith("00226"):
+            digits = digits[2:]
         encoded = urllib.parse.quote(pitch_text)
         return f"https://wa.me/{digits}?text={encoded}"
+

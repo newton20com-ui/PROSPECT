@@ -7,12 +7,16 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import os
+import re
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 from prospect_bf import (
+    CITIES,
     SECTOR_CATEGORIES,
     BusinessLead,
     audit_single_business,
@@ -134,19 +138,22 @@ def load_saved_leads() -> list[dict]:
 
 
 def save_leads(leads_dicts: list[dict]) -> None:
-    import os
     with STATE_LOCK:
-        temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.tmp")
+        unique_suffix = f"{os.getpid()}_{threading.get_ident()}_{time.time_ns()}"
+        temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.{unique_suffix}.tmp")
+        payload = json.dumps(leads_dicts, ensure_ascii=False, indent=2)
         try:
-            temp_file.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+            temp_file.write_text(payload, encoding="utf-8")
             os.replace(temp_file, STATE_FILE)
         except Exception:
-            STATE_FILE.write_text(json.dumps(leads_dicts, ensure_ascii=False, indent=2), encoding="utf-8")
+            STATE_FILE.write_text(payload, encoding="utf-8")
+        finally:
             if temp_file.exists():
                 try:
                     temp_file.unlink()
                 except Exception:
                     pass
+
 
 
 def merge_leads(existing: list[dict], incoming: list[dict]) -> list[dict]:
@@ -2235,6 +2242,13 @@ INDEX_HTML = """<!DOCTYPE html>
       color: #1d4ed8;
       transform: translateY(-1px);
     }
+
+    .chip-btn-amount.active {
+      background: #2563eb;
+      border-color: #1d4ed8;
+      color: #ffffff;
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -2948,8 +2962,13 @@ INDEX_HTML = """<!DOCTYPE html>
 
   function buildWhatsAppUrl(phone, pitch) {
     if (!phone || phone === 'Non renseigné') return '';
-    const digits = String(phone).replace(/[^0-9]/g, '');
+    let digits = String(phone).replace(/[^0-9]/g, '');
     if (!digits) return '';
+    if (digits.length === 8) {
+      digits = '226' + digits;
+    } else if (digits.startsWith('00226')) {
+      digits = digits.slice(2);
+    }
     return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(pitch);
   }
 
@@ -2960,7 +2979,7 @@ INDEX_HTML = """<!DOCTYPE html>
     try {
       const toast = document.createElement('div');
       toast.className = `toast-item toast-${type}`;
-      const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
+      const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : (msg.includes('⏳') ? '⏳' : 'ℹ️'));
       toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(msg)}</span>`;
       container.appendChild(toast);
       setTimeout(() => {
@@ -2973,37 +2992,65 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   function sharePitch(name, phone, pitch) {
+    const waUrl = buildWhatsAppUrl(phone, pitch);
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({
         title: `Proposition B2B — ${name}`,
         text: pitch,
-        url: buildWhatsAppUrl(phone, pitch)
-      }).catch(() => {});
+        url: waUrl || undefined
+      }).catch((err) => {
+        if (err && err.name !== 'AbortError') {
+          copyPitchText(null, pitch);
+        }
+      });
     } else {
       copyPitchText(null, pitch);
-      showToast('📋 Message copié dans le presse-papier !', 'success');
     }
   }
 
   function copyPitchText(btn, text) {
     const orig = (btn && btn.textContent && btn.textContent !== '✅ Copié !') ? btn.textContent : '📋 Copier Pitch';
-    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text);
-    } else if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    const fallbackExecCopy = () => {
       try {
         const ta = document.createElement('textarea');
         ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        ta.style.left = '-9999px';
         document.body.appendChild(ta);
+        ta.focus();
         ta.select();
-        document.execCommand('copy');
+        const ok = document.execCommand('copy');
         document.body.removeChild(ta);
-      } catch (e) {}
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const triggerSuccess = () => {
+      if (btn) {
+        btn.textContent = '✅ Copié !';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      }
+      showToast('📋 Pitch copié dans le presse-papier !', 'success');
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(text).then(triggerSuccess).catch(() => {
+        if (fallbackExecCopy()) {
+          triggerSuccess();
+        } else {
+          showToast('⚠️ Impossible de copier automatiquement', 'error');
+        }
+      });
+    } else {
+      if (fallbackExecCopy()) {
+        triggerSuccess();
+      } else {
+        showToast('⚠️ Presse-papier non supporté', 'error');
+      }
     }
-    if (btn) {
-      btn.textContent = '✅ Copié !';
-      setTimeout(() => { btn.textContent = orig; }, 1500);
-    }
-    showToast('📋 Pitch copié dans le presse-papier !', 'success');
   }
 
   let CURRENT_VIEW = 'scanner';
@@ -3359,7 +3406,8 @@ INDEX_HTML = """<!DOCTYPE html>
       b.style.color = isError ? '#b91c1c' : '#1d4ed8';
       b.textContent = msg;
     }
-    showToast(msg, isError ? 'error' : 'success');
+    const toastType = isError ? 'error' : (msg.includes('⏳') ? 'info' : 'success');
+    showToast(msg, toastType);
   }
 
   function highlightActiveKpi(st) {
@@ -3973,7 +4021,7 @@ INDEX_HTML = """<!DOCTYPE html>
       `</div>${rdvToggleDrawerHtml}` +
       `<div class="pipeline-meta-grid" style="margin-top:12px;">` +
       `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" />` +
-      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})">+50k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})">+100k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})">+150k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})">+250k</button></div></div>` +
+      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 50000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})" title="Pack 50 000 FCFA">50k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 100000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})" title="Pack 100 000 FCFA">100k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 150000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})" title="Pack 150 000 FCFA">150k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 250000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})" title="Pack 250 000 FCFA">250k F</button></div></div>` +
       `<div class="meta-input-group"><label>📝 Notes & Suivi client</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par pack Web..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div></div>` +
       `<div class="drawer-section"><div class="drawer-section-title"><span>💬 Studio Copywriting & Psychologie de Vente</span><span id="drawerPitchStats" class="pitch-stats-badge">${pitchStatsText}</span></div>` +
@@ -4055,11 +4103,14 @@ INDEX_HTML = """<!DOCTYPE html>
     if (navCrm) navCrm.textContent = pipeLeads.length;
 
     const totalPipelineFcfa = pipeLeads.reduce((acc, b) => acc + (parseInt(b.deal_amount || 0, 10) || 0), 0);
-    const winRate = pipeLeads.length > 0 ? Math.round((payeLeads.length / pipeLeads.length) * 100) : 0;
+    const closedDeals = payeLeads.length + ignoreLeads.length;
+    const winRate = closedDeals > 0
+      ? Math.round((payeLeads.length / closedDeals) * 100)
+      : (pipeLeads.length > 0 ? Math.round((payeLeads.length / pipeLeads.length) * 100) : 0);
     const finConvEl = document.getElementById('finConversionRate');
     if (finConvEl) finConvEl.textContent = `${winRate}% closing`;
     const finPotEl = document.getElementById('finPotentialTotal');
-    if (finPotEl) finPotEl.textContent = `Pipeline global : ${formatFcfa(totalPipelineFcfa)}`;
+    if (finPotEl) finPotEl.textContent = `Pipeline : ${formatFcfa(totalPipelineFcfa)} (${payeLeads.length} payé / ${pipeLeads.length} total)`;
 
     const knownSummaryEl = document.getElementById('radarKnownSummaryText');
     if (knownSummaryEl) {
@@ -4150,7 +4201,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     const metaInputsHtml = `<div class="pipeline-meta-grid">` +
       `<div class="meta-input-group"><label>💵 Montant du Deal (FCFA)</label><input type="number" min="0" step="5000" value="${b.deal_amount || ''}" placeholder="Ex: 75000 FCFA" onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: this.value})" />` +
-      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})">+50k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})">+100k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})">+150k</button><button type="button" class="chip-btn-amount" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})">+250k</button></div></div>` +
+      `<div class="quick-amount-chips"><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 50000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 50000})" title="Pack 50 000 FCFA">50k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 100000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 100000})" title="Pack 100 000 FCFA">100k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 150000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 150000})" title="Pack 150 000 FCFA">150k F</button><button type="button" class="chip-btn-amount ${parseInt(b.deal_amount || 0, 10) === 250000 ? 'active' : ''}" onclick="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {deal_amount: 250000})" title="Pack 250 000 FCFA">250k F</button></div></div>` +
       `<div class="meta-input-group"><label>📝 Note / Suivi / Relance</label><input type="text" value="${escapeHtml(b.notes || '')}" placeholder="Ex: Rappeler jeudi à 15h, intéressé par site vitrine..." onchange="updateLeadMeta(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'), {notes: this.value})" /></div>` +
       `</div>`;
 
@@ -4347,8 +4398,9 @@ INDEX_HTML = """<!DOCTYPE html>
         }
         return;
       }
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       const tag = (document.activeElement && document.activeElement.tagName) || '';
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean(document.activeElement && document.activeElement.isContentEditable);
       if (!isInput) {
         if (ev.key === '/') {
           ev.preventDefault();
@@ -4367,7 +4419,12 @@ INDEX_HTML = """<!DOCTYPE html>
     });
   }
 
-  document.getElementById('searchInput').addEventListener('input', (typeof setTimeout !== 'undefined') ? debounce(render, 100) : render);
+  const searchInputEl = document.getElementById('searchInput');
+  if (searchInputEl) {
+    const handleSearchInput = (typeof setTimeout !== 'undefined') ? debounce(render, 100) : render;
+    searchInputEl.addEventListener('input', handleSearchInput);
+    searchInputEl.addEventListener('search', render);
+  }
   document.getElementById('cityFilter').addEventListener('change', render);
   document.getElementById('crmFilter').addEventListener('change', render);
   document.getElementById('statusFilter').addEventListener('change', () => {
@@ -4487,6 +4544,21 @@ class ProspectHandler(BaseHTTPRequestHandler):
                     target_lead = {
                         "name": name,
                         "city": city,
+                        "neighborhood": "Saisie directe",
+                        "sector": SECTOR_CATEGORIES.get("entreprise", "🏢 Bureaux, Sociétés IT, Conseil & ONG"),
+                        "sector_key": "entreprise",
+                        "phone": "Non renseigné",
+                        "phone_type": "AUCUN",
+                        "tel_url": "",
+                        "email": "",
+                        "website": "",
+                        "facebook_url": "",
+                        "status": "SANS_SITE",
+                        "response_ms": 0,
+                        "issues": [],
+                        "score": 0,
+                        "pitch": "",
+                        "whatsapp_url": "",
                         "crm_status": new_status if isinstance(new_status, str) else "A_CONTACTER",
                         "in_pipeline": True,
                         "rdv_done": False,
@@ -4511,7 +4583,7 @@ class ProspectHandler(BaseHTTPRequestHandler):
                 if "deal_amount" in body:
                     target_lead["deal_amount"] = _safe_int_amount(body.get("deal_amount", 0))
                 if "notes" in body:
-                    target_lead["notes"] = str(body.get("notes") or "").strip()
+                    target_lead["notes"] = str(body.get("notes") or "").strip()[:5000]
                 target_lead["updated_at"] = now_iso
 
                 save_leads(current)
@@ -4576,7 +4648,10 @@ class ProspectHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/scan":
-            city = body.get("city", "ouaga")
+            city_raw = str(body.get("city", "ouaga") or "ouaga").strip().lower()
+            city = re.sub(r"[^a-z0-9_-]", "", city_raw)
+            if city not in CITIES:
+                city = "ouaga"
             sector = body.get("sector", "all")
             try:
                 limit = min(max(1, int(body.get("limit") or 75)), 130)
