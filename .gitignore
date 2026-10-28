@@ -10,6 +10,9 @@ adversarial_*
 # Local cache and dynamic state files
 osm_cache_*.json
 leads_state.json
+*.db
+*.db-wal
+*.db-shm
 
 # Agents workspace metadata
 .agents/

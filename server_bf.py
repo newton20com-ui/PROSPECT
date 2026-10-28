@@ -6,14 +6,19 @@ Optimisé spécifiquement pour les écrans de smartphones (Android / iOS 360px-4
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import json
 import os
 import re
+import secrets
+import sqlite3
 import threading
 import time
+from datetime import datetime, timezone, timedelta
+from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from prospect_bf import (
     CITIES,
@@ -29,7 +34,13 @@ from prospect_bf import (
 
 BASE_DIR = Path(__file__).resolve().parent
 STATE_FILE = BASE_DIR / "leads_state.json"
-
+DEFAULT_INVITE_CODE = os.environ.get("INVITE_CODE", "BF-PROSPECT-2026")
+DEFAULT_ADMIN_USER = {
+    "id": 1,
+    "username": "admin",
+    "display_name": "Direction Agence",
+    "role": "admin",
+}
 
 PIPELINE_ACTIVE_STATUSES = {"CONTACTE", "RDV", "CLIENT", "LIVRE", "PAYE", "ECHEC", "IGNORE"}
 VALID_CRM_STATUSES = {"NOUVEAU", "A_CONTACTER", "CONTACTE", "RDV", "CLIENT", "LIVRE", "PAYE", "ECHEC", "IGNORE"}
@@ -90,69 +101,582 @@ def lead_to_dict(b: BusinessLead) -> dict:
 STATE_LOCK = threading.RLock()
 
 
-def load_saved_leads() -> list[dict]:
-    from urllib.parse import quote_plus
-    with STATE_LOCK:
-        if STATE_FILE.exists():
-            try:
-                raw_leads = json.loads(STATE_FILE.read_text(encoding="utf-8"))
-                if isinstance(raw_leads, list):
-                    normalized = []
-                    for item in raw_leads:
-                        if not isinstance(item, dict):
-                            continue
-                        lead = dict(item)
-                        if not lead.get("crm_status"):
-                            lead["crm_status"] = "A_CONTACTER"
-                        crm_st = lead["crm_status"]
-                        lead["in_pipeline"] = bool(lead.get("in_pipeline", False) or (crm_st in PIPELINE_ACTIVE_STATUSES))
-                        lead["rdv_done"] = bool(lead.get("rdv_done", False))
-                        lead["deal_amount"] = _safe_int_amount(lead.get("deal_amount", 0))
-                        lead["notes"] = str(lead.get("notes") or "")
-                        lead["updated_at"] = str(lead.get("updated_at") or "")
-                        lead["email"] = str(lead.get("email") or "")
-                        lead["has_fb_pixel"] = bool(lead.get("has_fb_pixel", False))
-                        lead["has_google_analytics"] = bool(lead.get("has_google_analytics", False))
-                        skey = str(lead.get("sector_key") or "").strip().lower()
-                        if not skey or skey not in SECTOR_CATEGORIES or skey == "all":
-                            skey, slbl = classify_business_sector({"name": lead.get("name", ""), "description": lead.get("sector", "")})
-                            lead["sector_key"] = skey
-                            if not lead.get("sector"):
-                                lead["sector"] = slbl
-                        if not lead.get("maps_url"):
-                            lat = lead.get("lat")
-                            lon = lead.get("lon")
-                            city = lead.get("city", "")
-                            name = lead.get("name", "")
-                            if lat and lon and city != "Audit Direct":
-                                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
-                            else:
-                                loc = city if city and city != "Audit Direct" else "Burkina Faso"
-                                q = quote_plus(f"{name} {loc}".strip())
-                                lead["maps_url"] = f"https://www.google.com/maps/search/?api=1&query={q}"
-                        normalized.append(lead)
-                    return normalized
-            except Exception:
-                pass
-    return []
+def get_db_path() -> Path:
+    if STATE_FILE == BASE_DIR / "leads_state.json":
+        return BASE_DIR / "prospectbf.db"
+    return STATE_FILE.with_suffix(".db")
 
 
-def save_leads(leads_dicts: list[dict]) -> None:
+def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
+    target = db_path or get_db_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(target), timeout=15.0, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA foreign_keys=ON;")
+    conn.execute("PRAGMA busy_timeout=5000;")
+    return conn
+
+
+def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
+    if not salt:
+        salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000).hex()
+    return hashed, salt
+
+
+def verify_password(password: str, salt: str, expected_hash: str) -> bool:
+    hashed, _ = hash_password(password, salt)
+    return secrets.compare_digest(hashed, expected_hash)
+
+
+def init_db(db_path: Path | None = None) -> None:
     with STATE_LOCK:
-        unique_suffix = f"{os.getpid()}_{threading.get_ident()}_{time.time_ns()}"
-        temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.{unique_suffix}.tmp")
-        payload = json.dumps(leads_dicts, ensure_ascii=False, indent=2)
+        conn = get_db_connection(db_path)
         try:
+            with conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                        display_name TEXT NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        password_salt TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'commercial',
+                        created_at TEXT NOT NULL
+                    );
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS sessions (
+                        token TEXT PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        created_at TEXT NOT NULL,
+                        expires_at TEXT NOT NULL
+                    );
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS shared_leads (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        city TEXT NOT NULL,
+                        name_norm TEXT NOT NULL,
+                        city_norm TEXT NOT NULL,
+                        neighborhood TEXT DEFAULT '',
+                        sector TEXT DEFAULT '',
+                        sector_key TEXT DEFAULT '',
+                        phone TEXT DEFAULT '',
+                        phone_type TEXT DEFAULT '',
+                        tel_url TEXT DEFAULT '',
+                        email TEXT DEFAULT '',
+                        website TEXT DEFAULT '',
+                        facebook_url TEXT DEFAULT '',
+                        status TEXT DEFAULT '',
+                        response_ms INTEGER DEFAULT 0,
+                        issues_json TEXT DEFAULT '[]',
+                        score INTEGER DEFAULT 0,
+                        pitch TEXT DEFAULT '',
+                        whatsapp_url TEXT DEFAULT '',
+                        lat REAL DEFAULT 0.0,
+                        lon REAL DEFAULT 0.0,
+                        maps_url TEXT DEFAULT '',
+                        has_fb_pixel INTEGER DEFAULT 0,
+                        has_google_analytics INTEGER DEFAULT 0,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(name_norm, city_norm)
+                    );
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_shared_leads_lookup ON shared_leads(name_norm, city_norm);")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS user_pipelines (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        lead_id INTEGER NOT NULL REFERENCES shared_leads(id) ON DELETE CASCADE,
+                        crm_status TEXT NOT NULL DEFAULT 'A_CONTACTER',
+                        in_pipeline INTEGER NOT NULL DEFAULT 0,
+                        rdv_done INTEGER NOT NULL DEFAULT 0,
+                        deal_amount INTEGER NOT NULL DEFAULT 0,
+                        notes TEXT NOT NULL DEFAULT '',
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(user_id, lead_id)
+                    );
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_user_pipelines_uid ON user_pipelines(user_id);")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_user_pipelines_lid ON user_pipelines(lead_id);")
+
+                cur = conn.execute("SELECT COUNT(*) AS c FROM users;")
+                if cur.fetchone()["c"] == 0:
+                    admin_pass = os.environ.get("ADMIN_PASSWORD", "admin2026")
+                    h, s = hash_password(admin_pass)
+                    now_str = datetime.now(timezone.utc).isoformat()
+                    conn.execute(
+                        "INSERT INTO users (id, username, display_name, password_hash, password_salt, role, created_at) VALUES (1, 'admin', 'Direction Agence', ?, ?, 'admin', ?);",
+                        (h, s, now_str),
+                    )
+
+                cur_leads = conn.execute("SELECT COUNT(*) AS c FROM shared_leads;")
+                if cur_leads.fetchone()["c"] == 0 and STATE_FILE.exists():
+                    try:
+                        raw = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+                        if isinstance(raw, list) and len(raw) > 0:
+                            _import_leads_into_db(conn, raw, user_id=1)
+                    except Exception:
+                        pass
+        finally:
+            conn.close()
+
+
+def _import_leads_into_db(conn: sqlite3.Connection, leads_list: list[dict], user_id: int = 1) -> None:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    for item in leads_list:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip()
+        city = str(item.get("city", "")).strip()
+        if not name:
+            continue
+        name_norm = name.lower()
+        city_norm = city.lower()
+
+        skey = str(item.get("sector_key") or "").strip().lower()
+        sector = str(item.get("sector") or "")
+        if not skey or skey not in SECTOR_CATEGORIES or skey == "all":
+            skey, slbl = classify_business_sector({"name": name, "description": sector})
+            if not sector:
+                sector = slbl
+
+        maps_url = str(item.get("maps_url") or "")
+        if not maps_url:
+            lat = item.get("lat")
+            lon = item.get("lon")
+            if lat and lon and city != "Audit Direct":
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+            else:
+                loc = city if city and city != "Audit Direct" else "Burkina Faso"
+                q = quote_plus(f"{name} {loc}".strip())
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={q}"
+
+        issues = item.get("issues", [])
+        issues_json = json.dumps(issues if isinstance(issues, list) else [])
+        up_at = str(item.get("updated_at") or now_iso)
+
+        conn.execute("""
+            INSERT INTO shared_leads (
+                name, city, name_norm, city_norm, neighborhood, sector, sector_key,
+                phone, phone_type, tel_url, email, website, facebook_url, status,
+                response_ms, issues_json, score, pitch, whatsapp_url, lat, lon,
+                maps_url, has_fb_pixel, has_google_analytics, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name_norm, city_norm) DO UPDATE SET
+                neighborhood = excluded.neighborhood,
+                sector = excluded.sector,
+                sector_key = excluded.sector_key,
+                phone = excluded.phone,
+                phone_type = excluded.phone_type,
+                tel_url = excluded.tel_url,
+                email = excluded.email,
+                website = excluded.website,
+                facebook_url = excluded.facebook_url,
+                status = excluded.status,
+                response_ms = excluded.response_ms,
+                issues_json = excluded.issues_json,
+                score = excluded.score,
+                pitch = excluded.pitch,
+                whatsapp_url = excluded.whatsapp_url,
+                lat = excluded.lat,
+                lon = excluded.lon,
+                maps_url = excluded.maps_url,
+                has_fb_pixel = excluded.has_fb_pixel,
+                has_google_analytics = excluded.has_google_analytics,
+                updated_at = excluded.updated_at;
+        """, (
+            name, city, name_norm, city_norm,
+            str(item.get("neighborhood") or ""),
+            sector,
+            skey,
+            str(item.get("phone") or "Non renseigné"),
+            str(item.get("phone_type") or "AUCUN"),
+            str(item.get("tel_url") or ""),
+            str(item.get("email") or ""),
+            str(item.get("website") or ""),
+            str(item.get("facebook_url") or ""),
+            str(item.get("status") or "SANS_SITE"),
+            int(item.get("response_ms") or 0),
+            issues_json,
+            int(item.get("score") or 0),
+            str(item.get("pitch") or ""),
+            str(item.get("whatsapp_url") or ""),
+            float(item.get("lat") or 0.0),
+            float(item.get("lon") or 0.0),
+            maps_url,
+            1 if item.get("has_fb_pixel") else 0,
+            1 if item.get("has_google_analytics") else 0,
+            str(item.get("created_at") or now_iso),
+            up_at
+        ))
+
+        lead_row = conn.execute("SELECT id FROM shared_leads WHERE name_norm = ? AND city_norm = ?;", (name_norm, city_norm)).fetchone()
+        if lead_row:
+            lead_id = lead_row["id"]
+            crm_st = str(item.get("crm_status") or "A_CONTACTER")
+            in_pipe = 1 if (item.get("in_pipeline") or crm_st in PIPELINE_ACTIVE_STATUSES) else 0
+            rdv = 1 if item.get("rdv_done") else 0
+            deal = _safe_int_amount(item.get("deal_amount", 0))
+            notes = str(item.get("notes") or "")
+            conn.execute("""
+                INSERT INTO user_pipelines (
+                    user_id, lead_id, crm_status, in_pipeline, rdv_done, deal_amount, notes, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, lead_id) DO UPDATE SET
+                    crm_status = excluded.crm_status,
+                    in_pipeline = excluded.in_pipeline,
+                    rdv_done = excluded.rdv_done,
+                    deal_amount = excluded.deal_amount,
+                    notes = excluded.notes,
+                    updated_at = excluded.updated_at;
+            """, (user_id, lead_id, crm_st, in_pipe, rdv, deal, notes, up_at))
+
+
+def create_session(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=7)
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            with conn:
+                conn.execute(
+                    "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?);",
+                    (token, user_id, now.isoformat(), expires.isoformat()),
+                )
+        finally:
+            conn.close()
+    return token
+
+
+def get_user_by_session(token: str) -> dict | None:
+    if not token:
+        return None
+    init_db()
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            now_str = datetime.now(timezone.utc).isoformat()
+            cur = conn.execute("""
+                SELECT u.id, u.username, u.display_name, u.role
+                FROM sessions s
+                JOIN users u ON s.user_id = u.id
+                WHERE s.token = ? AND s.expires_at > ?;
+            """, (token, now_str))
+            row = cur.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+
+def delete_session(token: str) -> None:
+    if not token:
+        return
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            with conn:
+                conn.execute("DELETE FROM sessions WHERE token = ?;", (token,))
+        finally:
+            conn.close()
+
+
+def register_user(username: str, password: str, display_name: str, invite_code: str) -> tuple[bool, str, dict | None]:
+    init_db()
+    invite_code = invite_code.strip()
+    if invite_code != DEFAULT_INVITE_CODE:
+        return False, "Code d'invitation agence invalide", None
+
+    username = username.strip()
+    if len(username) < 3 or not re.match(r"^[a-zA-Z0-9_.@-]{3,50}$", username):
+        return False, "Nom d'utilisateur invalide (3 à 50 caractères alphanumériques)", None
+
+    password = password.strip()
+    if len(password) < 6:
+        return False, "Le mot de passe doit comporter au moins 6 caractères", None
+
+    display_name = display_name.strip() or username
+
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            with conn:
+                cur = conn.execute("SELECT id FROM users WHERE username = ?;", (username,))
+                if cur.fetchone():
+                    return False, "Ce nom d'utilisateur est déjà utilisé", None
+
+                cur_users = conn.execute("SELECT COUNT(*) AS c FROM users;")
+                count = cur_users.fetchone()["c"]
+                role = "admin" if (count == 0 or username.lower() == "admin") else "commercial"
+
+                hashed, salt = hash_password(password)
+                now_str = datetime.now(timezone.utc).isoformat()
+                cur_ins = conn.execute(
+                    "INSERT INTO users (username, display_name, password_hash, password_salt, role, created_at) VALUES (?, ?, ?, ?, ?, ?);",
+                    (username, display_name, hashed, salt, role, now_str),
+                )
+                user_id = cur_ins.lastrowid
+                user_obj = {
+                    "id": user_id,
+                    "username": username,
+                    "display_name": display_name,
+                    "role": role,
+                }
+                return True, "Utilisateur enregistré avec succès", user_obj
+        finally:
+            conn.close()
+
+
+def authenticate_user(username: str, password: str) -> tuple[bool, str, dict | None]:
+    init_db()
+    username = username.strip()
+    password = password.strip()
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            cur = conn.execute(
+                "SELECT id, username, display_name, password_hash, password_salt, role FROM users WHERE username = ?;",
+                (username,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return False, "Nom d'utilisateur ou mot de passe incorrect", None
+
+            if not verify_password(password, row["password_salt"], row["password_hash"]):
+                return False, "Nom d'utilisateur ou mot de passe incorrect", None
+
+            user_obj = {
+                "id": row["id"],
+                "username": row["username"],
+                "display_name": row["display_name"],
+                "role": row["role"],
+            }
+            return True, "Authentification réussie", user_obj
+        finally:
+            conn.close()
+
+
+def get_token_from_request(handler: BaseHTTPRequestHandler) -> str | None:
+    cookie_header = handler.headers.get("Cookie", "")
+    if cookie_header:
+        try:
+            c = cookies.SimpleCookie()
+            c.load(cookie_header)
+            if "session_token" in c:
+                return c["session_token"].value
+        except Exception:
+            pass
+    auth_header = handler.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:].strip()
+    return None
+
+
+def get_request_user(handler: BaseHTTPRequestHandler) -> dict | None:
+    token = get_token_from_request(handler)
+    if token:
+        return get_user_by_session(token)
+    return None
+
+
+def get_admin_overview() -> dict:
+    init_db()
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            cur_leads = conn.execute("SELECT COUNT(*) AS c FROM shared_leads;")
+            total_leads = cur_leads.fetchone()["c"]
+
+            cur_reps = conn.execute("""
+                SELECT
+                    u.id AS user_id,
+                    u.username,
+                    u.display_name,
+                    u.role,
+                    u.created_at,
+                    COUNT(CASE WHEN up.in_pipeline = 1 OR up.crm_status IN ('CONTACTE', 'RDV', 'CLIENT', 'LIVRE', 'PAYE', 'ECHEC', 'IGNORE') THEN 1 END) AS pipeline_count,
+                    COUNT(CASE WHEN up.crm_status IN ('CLIENT', 'LIVRE', 'PAYE') THEN 1 END) AS won_count,
+                    COALESCE(SUM(CASE WHEN up.crm_status = 'PAYE' THEN up.deal_amount ELSE 0 END), 0) AS paid_revenue_fcfa,
+                    COALESCE(SUM(CASE WHEN up.crm_status IN ('CONTACTE', 'RDV', 'CLIENT', 'LIVRE', 'PAYE') THEN up.deal_amount ELSE 0 END), 0) AS pipeline_fcfa,
+                    COALESCE(MAX(up.updated_at), u.created_at) AS last_active
+                FROM users u
+                LEFT JOIN user_pipelines up ON u.id = up.user_id
+                GROUP BY u.id
+                ORDER BY paid_revenue_fcfa DESC, pipeline_fcfa DESC, u.id ASC;
+            """)
+            reps = [dict(r) for r in cur_reps.fetchall()]
+
+            total_paid = sum(r["paid_revenue_fcfa"] for r in reps)
+            total_pipeline = sum(r["pipeline_fcfa"] for r in reps)
+            total_won = sum(r["won_count"] for r in reps)
+            total_active = sum(r["pipeline_count"] for r in reps)
+
+            return {
+                "total_shared_leads": total_leads,
+                "total_reps": len(reps),
+                "agency_revenue_paid_fcfa": total_paid,
+                "agency_pipeline_fcfa": total_pipeline,
+                "agency_deals_won": total_won,
+                "agency_deals_active": total_active,
+                "reps": reps,
+            }
+        finally:
+            conn.close()
+
+
+def load_saved_leads(user_id: int | None = None) -> list[dict]:
+    init_db()
+    uid = user_id if user_id is not None else 1
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            claims_cur = conn.execute("""
+                SELECT up.lead_id, up.user_id, u.display_name, u.username, up.crm_status, up.in_pipeline
+                FROM user_pipelines up
+                JOIN users u ON up.user_id = u.id
+                WHERE up.in_pipeline = 1 OR up.crm_status IN ('CONTACTE', 'RDV', 'CLIENT', 'LIVRE', 'PAYE', 'ECHEC', 'IGNORE');
+            """)
+            claims_map: dict[int, list[dict]] = {}
+            for r in claims_cur.fetchall():
+                claims_map.setdefault(r["lead_id"], []).append(dict(r))
+
+            sql = """
+                SELECT
+                    sl.*,
+                    up.crm_status AS user_crm_status,
+                    up.in_pipeline AS user_in_pipeline,
+                    up.rdv_done AS user_rdv_done,
+                    up.deal_amount AS user_deal_amount,
+                    up.notes AS user_notes,
+                    up.updated_at AS user_updated_at
+                FROM shared_leads sl
+                LEFT JOIN user_pipelines up ON up.lead_id = sl.id AND up.user_id = ?
+                ORDER BY sl.score DESC, (sl.phone_type = 'MOBILE_WHATSAPP') DESC;
+            """
+            cur = conn.execute(sql, (uid,))
+            rows = cur.fetchall()
+            result = []
+            for r in rows:
+                lead_id = r["id"]
+                crm_st = r["user_crm_status"] or "A_CONTACTER"
+                in_pipe = bool(r["user_in_pipeline"] or (crm_st in PIPELINE_ACTIVE_STATUSES))
+                rdv_done = bool(r["user_rdv_done"])
+                deal_amount = _safe_int_amount(r["user_deal_amount"])
+                notes = str(r["user_notes"] or "")
+                updated_at = str(r["user_updated_at"] or r["updated_at"] or "")
+
+                lead_claims = claims_map.get(lead_id, [])
+                other_claim = next((c for c in lead_claims if c["user_id"] != uid), None)
+                my_claim = any(c["user_id"] == uid for c in lead_claims)
+
+                try:
+                    issues = json.loads(r["issues_json"]) if r["issues_json"] else []
+                except Exception:
+                    issues = []
+
+                skey = str(r["sector_key"] or "").strip().lower()
+                sector = str(r["sector"] or "")
+                if not skey or skey not in SECTOR_CATEGORIES or skey == "all":
+                    skey, slbl = classify_business_sector({"name": r["name"], "description": sector})
+                    if not sector:
+                        sector = slbl
+
+                maps_url = r["maps_url"] or ""
+                if not maps_url:
+                    lat = r["lat"]
+                    lon = r["lon"]
+                    city = r["city"] or ""
+                    name = r["name"] or ""
+                    if lat and lon and city != "Audit Direct":
+                        maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                    else:
+                        loc = city if city and city != "Audit Direct" else "Burkina Faso"
+                        q = quote_plus(f"{name} {loc}".strip())
+                        maps_url = f"https://www.google.com/maps/search/?api=1&query={q}"
+
+                lead = {
+                    "name": r["name"],
+                    "city": r["city"],
+                    "neighborhood": r["neighborhood"] or "",
+                    "sector": sector,
+                    "sector_key": skey,
+                    "phone": r["phone"] or "Non renseigné",
+                    "phone_type": r["phone_type"] or "AUCUN",
+                    "tel_url": r["tel_url"] or "",
+                    "email": r["email"] or "",
+                    "website": r["website"] or "",
+                    "facebook_url": r["facebook_url"] or "",
+                    "status": r["status"] or "SANS_SITE",
+                    "response_ms": r["response_ms"] or 0,
+                    "issues": issues,
+                    "score": r["score"] or 0,
+                    "pitch": r["pitch"] or "",
+                    "whatsapp_url": r["whatsapp_url"] or "",
+                    "lat": r["lat"] or 0.0,
+                    "lon": r["lon"] or 0.0,
+                    "maps_url": maps_url,
+                    "crm_status": crm_st,
+                    "in_pipeline": in_pipe,
+                    "rdv_done": rdv_done,
+                    "deal_amount": deal_amount,
+                    "notes": notes,
+                    "updated_at": updated_at,
+                    "has_fb_pixel": bool(r["has_fb_pixel"]),
+                    "has_google_analytics": bool(r["has_google_analytics"]),
+                    "claimed_by": other_claim["display_name"] if other_claim else "",
+                    "claimed_by_name": other_claim["display_name"] if other_claim else "",
+                    "claimed_by_id": other_claim["user_id"] if other_claim else None,
+                    "is_claimed_by_me": bool(my_claim or in_pipe),
+                }
+                result.append(lead)
+            return result
+        finally:
+            conn.close()
+
+
+def save_leads(leads_dicts: list[dict], user_id: int | None = None) -> None:
+    init_db()
+    uid = user_id if user_id is not None else 1
+    with STATE_LOCK:
+        conn = get_db_connection()
+        try:
+            with conn:
+                if not leads_dicts:
+                    conn.execute("DELETE FROM user_pipelines;")
+                    conn.execute("DELETE FROM shared_leads;")
+                else:
+                    _import_leads_into_db(conn, leads_dicts, user_id=uid)
+        finally:
+            conn.close()
+
+        # Atomic synchronization with STATE_FILE for legacy compatibility
+        try:
+            snapshot = load_saved_leads(user_id=1)
+            payload = json.dumps(snapshot, ensure_ascii=False, indent=2)
+            unique_suffix = f"{os.getpid()}_{threading.get_ident()}_{time.time_ns()}"
+            temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.{unique_suffix}.tmp")
             temp_file.write_text(payload, encoding="utf-8")
             os.replace(temp_file, STATE_FILE)
         except Exception:
-            STATE_FILE.write_text(payload, encoding="utf-8")
+            try:
+                STATE_FILE.write_text(payload, encoding="utf-8")
+            except Exception:
+                pass
         finally:
-            if temp_file.exists():
+            if 'temp_file' in locals() and temp_file.exists():
                 try:
                     temp_file.unlink()
                 except Exception:
                     pass
+
 
 
 
@@ -2249,6 +2773,48 @@ INDEX_HTML = """<!DOCTYPE html>
       color: #ffffff;
       box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
     }
+
+    .center-dialog-box {
+      width: 100%;
+      max-width: 480px;
+      margin: auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      padding: 22px 20px;
+      border: 1px solid var(--border);
+      animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalScaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .badge-claimed {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+    .user-auth-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    @media (max-width: 640px) {
+      .user-auth-strip {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 6px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2281,6 +2847,19 @@ INDEX_HTML = """<!DOCTYPE html>
           🏠 Vue Globale
         </button>
       </nav>
+
+      <!-- ESPACE UTILISATEUR & GESTION EQUIPE AGÈNCE -->
+      <div class="user-auth-strip" id="userAuthStrip">
+        <div id="userLoggedInBlock" style="display:none; align-items:center; gap:8px;">
+          <span class="user-badge" id="navUserBadge" style="font-size:0.75rem; font-weight:700; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; padding:4px 10px; border-radius:9999px;">👤 Direction</span>
+          <button type="button" id="btnAdminDashboard" class="btn btn-reset" style="display:none; width:auto; min-height:30px; padding:3px 10px; font-size:0.74rem; font-weight:700; background:#fefce8; color:#a16207; border-color:#fde047;" onclick="openAdminModal()">📊 Vue Agence</button>
+          <button type="button" class="btn btn-reset" style="width:auto; min-height:30px; padding:3px 8px; font-size:0.72rem; color:#64748b; border-color:#cbd5e1; background:#ffffff;" onclick="logoutUser()" title="Déconnexion">🚪 Sortir</button>
+        </div>
+        <div id="userLoggedOutBlock" style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn btn-reset" style="width:auto; min-height:30px; padding:3px 10px; font-size:0.74rem; font-weight:700; color:#2563eb; border-color:#bfdbfe; background:#ffffff;" onclick="openAuthModal('login')">🔑 Connexion</button>
+          <button type="button" class="btn btn-primary" style="width:auto; min-height:30px; padding:3px 10px; font-size:0.74rem; font-weight:700;" onclick="openAuthModal('register')">✨ Inscription</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2663,10 +3242,80 @@ INDEX_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- MODAL AUTHENTIFICATION & INSCRIPTION (COMMERCIAUX / ÉQUIPE) -->
+  <div id="authModal" class="modal-backdrop" onclick="if(event.target===this) closeAuthModal()">
+    <div class="center-dialog-box" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle">
+      <div class="drawer-header" style="margin-bottom:12px;">
+        <div>
+          <span style="font-size:0.72rem; color:var(--blue); font-weight:800; text-transform:uppercase;">ESPACE COMMERCIAL AGÈNCE</span>
+          <h2 id="authDialogTitle" style="font-size:1.15rem; font-weight:900; color:var(--text); margin-top:2px;">Connexion Commerciale</h2>
+        </div>
+        <button type="button" class="drawer-close-btn" onclick="closeAuthModal()" title="Fermer">✕</button>
+      </div>
+
+      <div class="auth-tabs" style="display:flex; border-bottom:1px solid #e2e8f0; margin-bottom:14px;">
+        <button type="button" id="tabAuthLogin" class="tab-btn active" style="flex:1; padding:8px; font-size:0.8rem; font-weight:700;" onclick="switchAuthTab('login')">🔑 Se connecter</button>
+        <button type="button" id="tabAuthRegister" class="tab-btn" style="flex:1; padding:8px; font-size:0.8rem; font-weight:700;" onclick="switchAuthTab('register')">✨ Créer un compte</button>
+      </div>
+
+      <div id="authErrorMsg" style="color:#b91c1c; font-size:0.78rem; font-weight:700; margin-bottom:10px; min-height:18px;"></div>
+
+      <!-- FORMULAIRE CONNEXION -->
+      <form id="formAuthLogin" onsubmit="event.preventDefault(); submitLogin();" style="display:block;">
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Nom d'utilisateur</label>
+          <input type="text" id="loginUsername" class="search-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:0.85rem;" placeholder="Ex: moussa" autocomplete="username" required>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Mot de passe</label>
+          <input type="password" id="loginPassword" class="search-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:0.85rem;" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:10px; font-size:0.88rem; font-weight:800;">Se connecter à mon pipeline</button>
+      </form>
+
+      <!-- FORMULAIRE INSCRIPTION AVEC CODE D'INVITATION -->
+      <form id="formAuthRegister" onsubmit="event.preventDefault(); submitRegister();" style="display:none;">
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Nom d'utilisateur <span style="color:#ef4444;">*</span></label>
+          <input type="text" id="regUsername" class="search-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:0.85rem;" placeholder="Ex: moussa_ouaga" autocomplete="username" required>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Nom complet / Prénom</label>
+          <input type="text" id="regDisplayName" class="search-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:0.85rem;" placeholder="Ex: Moussa Ouédraogo">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Mot de passe (min 6 car.) <span style="color:#ef4444;">*</span></label>
+          <input type="password" id="regPassword" class="search-input" style="width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; font-size:0.85rem;" placeholder="••••••••" autocomplete="new-password" required>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:0.76rem; font-weight:700; color:#1e40af; margin-bottom:4px;">🔐 Code d'invitation Agence <span style="color:#ef4444;">*</span></label>
+          <input type="text" id="regInviteCode" class="search-input" style="width:100%; border:2px solid #93c5fd; background:#eff6ff; border-radius:6px; padding:8px 10px; font-size:0.85rem; font-weight:700;" placeholder="Ex: BF-PROSPECT-2026" required>
+          <p style="font-size:0.68rem; color:#64748b; margin-top:3px;">Requis pour protéger vos données et empêcher les inscriptions non autorisées.</p>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:10px; font-size:0.88rem; font-weight:800;">Créer mon compte commercial</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL TABLEAU DE BORD DIRECTION AGÈNCE (ADMIN) -->
+  <div id="adminTeamModal" class="modal-backdrop" onclick="if(event.target===this) closeAdminModal()">
+    <div class="center-dialog-box" style="max-width:760px;" role="dialog" aria-modal="true" aria-labelledby="adminDialogTitle">
+      <div class="drawer-header" style="margin-bottom:12px;">
+        <div>
+          <span style="font-size:0.72rem; color:#b45309; font-weight:800; text-transform:uppercase;">DIRECTION AGÈNCE & PILOTAGE</span>
+          <h2 id="adminDialogTitle" style="font-size:1.25rem; font-weight:900; color:var(--text); margin-top:2px;">📊 Performance Globale & Pipelines Équipe</h2>
+        </div>
+        <button type="button" class="drawer-close-btn" onclick="closeAdminModal()" title="Fermer">✕</button>
+      </div>
+      <div id="adminDashboardBody" style="min-height:220px;"></div>
+    </div>
+  </div>
+
   <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script>
+  let CURRENT_USER = null;
   let LEADS = [];
   const STORAGE_KEY = 'prospectbf_leads_v26';
   let CURRENT_OFFER = 'WEB';
@@ -2679,6 +3328,247 @@ INDEX_HTML = """<!DOCTYPE html>
   function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  async function checkAuthStatus() {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data && data.authenticated && data.user) {
+        CURRENT_USER = data.user;
+      } else {
+        CURRENT_USER = null;
+      }
+    } catch (e) {
+      CURRENT_USER = null;
+    }
+    updateUserNavUI();
+  }
+
+  function updateUserNavUI() {
+    const loggedInBlock = document.getElementById('userLoggedInBlock');
+    const loggedOutBlock = document.getElementById('userLoggedOutBlock');
+    const userBadge = document.getElementById('navUserBadge');
+    const adminBtn = document.getElementById('btnAdminDashboard');
+
+    if (!loggedInBlock || !loggedOutBlock) return;
+
+    if (CURRENT_USER) {
+      loggedInBlock.style.display = 'flex';
+      loggedOutBlock.style.display = 'none';
+      if (userBadge) {
+        const roleLabel = CURRENT_USER.role === 'admin' ? 'Direction' : 'Commercial';
+        userBadge.textContent = `👤 ${CURRENT_USER.display_name || CURRENT_USER.username} (${roleLabel})`;
+      }
+      if (adminBtn) {
+        adminBtn.style.display = CURRENT_USER.role === 'admin' ? 'inline-flex' : 'none';
+      }
+    } else {
+      loggedInBlock.style.display = 'none';
+      loggedOutBlock.style.display = 'flex';
+      if (adminBtn) adminBtn.style.display = 'none';
+    }
+  }
+
+  function openAuthModal(mode) {
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+    switchAuthTab(mode || 'login');
+    modal.classList.add('open');
+  }
+
+  function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function switchAuthTab(mode) {
+    const tabLogin = document.getElementById('tabAuthLogin');
+    const tabReg = document.getElementById('tabAuthRegister');
+    const formLogin = document.getElementById('formAuthLogin');
+    const formReg = document.getElementById('formAuthRegister');
+    const authErr = document.getElementById('authErrorMsg');
+    if (authErr) authErr.textContent = '';
+
+    if (mode === 'login') {
+      if (tabLogin) tabLogin.classList.add('active');
+      if (tabReg) tabReg.classList.remove('active');
+      if (formLogin) formLogin.style.display = 'block';
+      if (formReg) formReg.style.display = 'none';
+    } else {
+      if (tabLogin) tabLogin.classList.remove('active');
+      if (tabReg) tabReg.classList.add('active');
+      if (formLogin) formLogin.style.display = 'none';
+      if (formReg) formReg.style.display = 'block';
+    }
+  }
+
+  async function submitLogin() {
+    const uEl = document.getElementById('loginUsername');
+    const pEl = document.getElementById('loginPassword');
+    const errEl = document.getElementById('authErrorMsg');
+    if (!uEl || !pEl) return;
+    const username = uEl.value.trim();
+    const password = pEl.value.trim();
+    if (!username || !password) {
+      if (errEl) errEl.textContent = 'Identifiant et mot de passe requis.';
+      return;
+    }
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (errEl) errEl.textContent = data.error || 'Identifiants invalides';
+        return;
+      }
+      CURRENT_USER = data.user;
+      updateUserNavUI();
+      closeAuthModal();
+      showBanner(`👋 Bienvenue ${CURRENT_USER.display_name || CURRENT_USER.username} ! Espace commercial connecté.`);
+      await loadInitialLeads();
+    } catch (e) {
+      if (errEl) errEl.textContent = 'Erreur réseau: ' + e;
+    }
+  }
+
+  async function submitRegister() {
+    const uEl = document.getElementById('regUsername');
+    const dEl = document.getElementById('regDisplayName');
+    const pEl = document.getElementById('regPassword');
+    const iEl = document.getElementById('regInviteCode');
+    const errEl = document.getElementById('authErrorMsg');
+    if (!uEl || !pEl || !iEl) return;
+    const username = uEl.value.trim();
+    const display_name = (dEl ? dEl.value.trim() : '') || username;
+    const password = pEl.value.trim();
+    const invite_code = iEl.value.trim();
+
+    if (!username || !password || !invite_code) {
+      if (errEl) errEl.textContent = 'Tous les champs marqués * sont requis.';
+      return;
+    }
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, display_name, password, invite_code })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (errEl) errEl.textContent = data.error || 'Erreur lors de la création du compte';
+        return;
+      }
+      CURRENT_USER = data.user;
+      updateUserNavUI();
+      closeAuthModal();
+      showBanner(`🎉 Compte créé avec succès ! Bienvenue ${CURRENT_USER.display_name}.`);
+      await loadInitialLeads();
+    } catch (e) {
+      if (errEl) errEl.textContent = 'Erreur réseau: ' + e;
+    }
+  }
+
+  async function logoutUser() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    CURRENT_USER = null;
+    updateUserNavUI();
+    showBanner('Déconnexion effectuée.');
+    await loadInitialLeads();
+  }
+
+  async function openAdminModal() {
+    const modal = document.getElementById('adminTeamModal');
+    if (!modal) return;
+    modal.classList.add('open');
+    const body = document.getElementById('adminDashboardBody');
+    if (body) body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">⏳ Chargement des données agence...</div>';
+    try {
+      const res = await fetch('/api/admin/overview');
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (body) body.innerHTML = `<div style="color:#b91c1c; padding:20px; font-weight:700;">❌ ${data.error || 'Accès non autorisé au tableau de bord agence.'}</div>`;
+        return;
+      }
+      renderAdminDashboard(data.overview);
+    } catch (e) {
+      if (body) body.innerHTML = `<div style="color:#b91c1c; padding:20px;">❌ Erreur: ${e}</div>`;
+    }
+  }
+
+  function closeAdminModal() {
+    const modal = document.getElementById('adminTeamModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function renderAdminDashboard(ov) {
+    const body = document.getElementById('adminDashboardBody');
+    if (!body || !ov) return;
+    const fmt = (n) => (n || 0).toLocaleString('fr-FR') + ' FCFA';
+    let repsRows = '';
+    (ov.reps || []).forEach(r => {
+      const roleBadge = r.role === 'admin'
+        ? '<span style="background:#dbeafe; color:#1e40af; font-size:0.7rem; font-weight:700; padding:2px 6px; border-radius:4px;">ADMIN</span>'
+        : '<span style="background:#f1f5f9; color:#475569; font-size:0.7rem; font-weight:700; padding:2px 6px; border-radius:4px;">COMMERCIAL</span>';
+      repsRows += `
+        <tr style="border-bottom:1px solid #e2e8f0; font-size:0.82rem;">
+          <td style="padding:10px 8px; font-weight:700;">${escapeHtml(r.display_name || r.username)} <div style="font-size:0.7rem; color:#64748b; font-weight:normal;">@${escapeHtml(r.username)}</div></td>
+          <td style="padding:10px 8px;">${roleBadge}</td>
+          <td style="padding:10px 8px; text-align:center; font-weight:700; color:#2563eb;">${r.pipeline_count || 0}</td>
+          <td style="padding:10px 8px; text-align:center; font-weight:700; color:#059669;">${r.won_count || 0}</td>
+          <td style="padding:10px 8px; text-align:right; font-weight:800; color:#047857;">${fmt(r.paid_revenue_fcfa)}</td>
+          <td style="padding:10px 8px; text-align:right; font-weight:700; color:#475569;">${fmt(r.pipeline_fcfa)}</td>
+        </tr>
+      `;
+    });
+
+    body.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:18px;">
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px;">
+          <div style="font-size:0.72rem; color:#1e40af; font-weight:700;">TOTAL RADAR</div>
+          <div style="font-size:1.3rem; font-weight:900; color:#1d4ed8;">${ov.total_shared_leads || 0}</div>
+          <div style="font-size:0.68rem; color:#60a5fa;">Entreprises scannées</div>
+        </div>
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px;">
+          <div style="font-size:0.72rem; color:#065f46; font-weight:700;">CA ENCAISSÉ</div>
+          <div style="font-size:1.15rem; font-weight:900; color:#047857;">${fmt(ov.agency_revenue_paid_fcfa)}</div>
+          <div style="font-size:0.68rem; color:#34d399;">Statut PAYÉ</div>
+        </div>
+        <div style="background:#fefce8; border:1px solid #fef08a; border-radius:8px; padding:12px;">
+          <div style="font-size:0.72rem; color:#854d0e; font-weight:700;">PIPELINE ACTIF</div>
+          <div style="font-size:1.15rem; font-weight:900; color:#a16207;">${fmt(ov.agency_pipeline_fcfa)}</div>
+          <div style="font-size:0.68rem; color:#ca8a04;">En cours</div>
+        </div>
+        <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px;">
+          <div style="font-size:0.72rem; color:#6b21a8; font-weight:700;">ÉQUIPE AGÈNCE</div>
+          <div style="font-size:1.3rem; font-weight:900; color:#7e22ce;">${(ov.reps || []).length}</div>
+          <div style="font-size:0.68rem; color:#c084fc;">Membres actifs</div>
+        </div>
+      </div>
+      <h3 style="font-size:0.92rem; font-weight:800; color:#0f172a; margin-bottom:10px;">👥 Performance par Commercial</h3>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; font-size:0.72rem; color:#64748b; text-transform:uppercase;">
+              <th style="padding:8px;">Commercial</th>
+              <th style="padding:8px;">Rôle</th>
+              <th style="padding:8px; text-align:center;">Prospects</th>
+              <th style="padding:8px; text-align:center;">Gagnés</th>
+              <th style="padding:8px; text-align:right;">CA Payé</th>
+              <th style="padding:8px; text-align:right;">Pipeline</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${repsRows || '<tr><td colspan="6" style="padding:15px; text-align:center; color:#94a3b8;">Aucun commercial enregistré</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 
   const SECTOR_LABELS = {
@@ -3131,6 +4021,9 @@ INDEX_HTML = """<!DOCTYPE html>
   async function addLeadToPipeline(name, city) {
     const match = findLeadByNameCity(name, city);
     if (!match) return;
+    if (match.claimed_by && !match.is_claimed_by_me && typeof confirm === 'function') {
+      if (!confirm(`⚠️ Attention : Ce prospect est déjà dans le pipeline de ${match.claimed_by_name || match.claimed_by}. Souhaitez-vous l'ajouter à votre pipeline personnel ?`)) return;
+    }
     match.crm_status = 'A_CONTACTER';
     match.in_pipeline = true;
     match.updated_at = new Date().toISOString();
@@ -3752,6 +4645,7 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   async function loadInitialLeads() {
+    await checkAuthStatus();
     const localLeads = loadLocalBackup();
     try {
       const res = await fetch('/api/leads');
@@ -3999,8 +4893,12 @@ INDEX_HTML = """<!DOCTYPE html>
       ? `<div style="margin-top:10px;"><button type="button" class="btn-stage-action btn-stage-rdv-check ${b.rdv_done ? 'done' : ''}" style="width:100%;" onclick="toggleLeadRdvDone(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">${b.rdv_done ? '☑️ Rendez-vous Fait ! (Validé)' : '⬜ Cliquer ici quand le Rendez-vous est Fait'}</button></div>`
       : '';
 
+    const claimAlertHtml = (b.claimed_by && !b.is_claimed_by_me)
+      ? `<div style="background:#fef3c7; border:1px solid #fcd34d; color:#92400e; padding:10px 14px; border-radius:8px; font-size:0.8rem; font-weight:700; margin-bottom:14px;">📌 Ce prospect est actuellement traité par <u>${escapeHtml(b.claimed_by_name || b.claimed_by)}</u> dans son pipeline commercial.</div>`
+      : '';
+
     const bodyEl = document.getElementById('drawerBodyContent');
-    bodyEl.innerHTML = `<div class="drawer-section"><div class="drawer-section-title"><span>📊 Diagnostic Technique Complet</span><span class="status-pill st-${b.status}">${(b.status || '').replace('_', ' ')}</span></div>` +
+    bodyEl.innerHTML = `${claimAlertHtml}<div class="drawer-section"><div class="drawer-section-title"><span>📊 Diagnostic Technique Complet</span><span class="status-pill st-${b.status}">${(b.status || '').replace('_', ' ')}</span></div>` +
       `<div class="diag-grid">` +
       `<div class="diag-item"><span class="diag-lbl">Score d'Opportunité</span><span class="diag-val" style="color:${scoreColor}; font-size:1.1rem;">${b.score || 0} / 100</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Temps de Réponse HTTP</span><span class="diag-val">${b.response_ms ? b.response_ms + ' ms' : 'Non mesuré / Sans site'}</span></div>` +
@@ -4353,18 +5251,25 @@ INDEX_HTML = """<!DOCTYPE html>
         if (inPipe) {
           workflowZoneHtml = buildRadarMemoryBannerHtml(b, encName, encCity);
         } else {
+          const claimNotice = (b.claimed_by && !b.is_claimed_by_me)
+            ? ` (📌 Pris par ${escapeHtml(b.claimed_by_name || b.claimed_by)})`
+            : '';
           workflowZoneHtml = `<div class="scan-triage-bar">` +
-            `<button type="button" class="btn-add-pipeline" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter »</button>` +
+            `<button type="button" class="btn-add-pipeline" onclick="addLeadToPipeline(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">➕ Mettre dans « À contacter »${claimNotice}</button>` +
             `<button type="button" class="btn btn-reset" style="width:auto; min-height:42px; padding:8px 12px; font-size:0.75rem; color:#b91c1c; border-color:#fecaca; background:#fff1f2;" onclick="setLeadCrmStatus(decodeURIComponent('${encName}'), 'IGNORE', decodeURIComponent('${encCity}'))" title="Ignorer ce résultat">🚫 Ignorer</button>` +
             `</div>`;
         }
       }
 
+      const claimBadge = (b.claimed_by && !b.is_claimed_by_me)
+        ? `<span class="badge-claimed">📌 Pris par ${escapeHtml(b.claimed_by_name || b.claimed_by)}</span>`
+        : '';
+
       return `<div class="${cardClass}"><div><div class="card-top">` +
         `<div class="score-badge" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))" title="Ouvrir la fiche détaillée"><span class="score-num" style="color:${scoreColor}">${b.score}</span><span class="score-lbl">Score</span></div>` +
         `<div class="title-wrap"><div class="biz-name-row"><span class="biz-name" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))" title="Cliquer pour entrer dans la fiche complète">${escapeHtml(b.name)}</span>` +
         `<button type="button" class="btn-open-detail" onclick="openLeadDetail(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">🔎 Fiche & Suivi</button></div>` +
-        `<div class="badges-row"><span class="status-pill st-${b.status}">${b.status.replace('_', ' ')}${speedTag}</span>${phoneLabel}${pixelBadge}${gaBadge}</div></div></div>` +
+        `<div class="badges-row"><span class="status-pill st-${b.status}">${b.status.replace('_', ' ')}${speedTag}</span>${phoneLabel}${pixelBadge}${gaBadge}${claimBadge}</div></div></div>` +
         `${workflowZoneHtml}` +
         `<div class="meta-chips"><span class="meta-item"><a href="${mapsUrl}" target="_blank" title="Voir sur Google Maps">📍 ${escapeHtml(b.city)} (${escapeHtml(b.neighborhood)})</a></span><span class="meta-item">${escapeHtml(shortSector)}</span><span class="meta-item">📞 <strong>${escapeHtml(b.phone)}</strong></span>${emailChip}<span class="meta-item">${siteHtml}</span></div>` +
         `<div class="issues">${(b.issues || []).map(iss => `<span class="issue-tag">⚠️ ${escapeHtml(iss)}</span>`).join('')}</div>` +
@@ -4455,7 +5360,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
 
 class ProspectHandler(BaseHTTPRequestHandler):
-    def _send_json(self, data: dict, status: int = 200) -> None:
+    def _send_json(self, data: dict, status: int = 200, set_cookie: str | None = None) -> None:
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -4464,7 +5369,9 @@ class ProspectHandler(BaseHTTPRequestHandler):
         self.send_header("X-Frame-Options", "SAMEORIGIN")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        if set_cookie:
+            self.send_header("Set-Cookie", set_cookie)
         self.end_headers()
         self.wfile.write(raw)
 
@@ -4482,17 +5389,34 @@ class ProspectHandler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/leads":
-            leads = load_saved_leads()
+            user = get_request_user(self)
+            uid = user["id"] if user else 1
+            leads = load_saved_leads(user_id=uid)
             self._send_json({"leads": leads})
             return
+        if parsed.path == "/api/auth/me":
+            user = get_request_user(self)
+            if user:
+                self._send_json({"authenticated": True, "user": user})
+            else:
+                self._send_json({"authenticated": False, "user": None})
+            return
+        if parsed.path == "/api/admin/overview":
+            user = get_request_user(self) or DEFAULT_ADMIN_USER
+            if user.get("role") != "admin":
+                self._send_json({"error": "Accès réservé aux administrateurs"}, status=403)
+                return
+            overview = get_admin_overview()
+            self._send_json({"ok": True, "overview": overview})
+            return
         if parsed.path == "/api/health":
-            self._send_json({"status": "ok", "version": "2.7", "engine": "ProspectBF-Titan"})
+            self._send_json({"status": "ok", "version": "2.7", "engine": "ProspectBF-Titan", "db": "sqlite-wal"})
             return
         self._send_html(INDEX_HTML)
 
@@ -4506,8 +5430,54 @@ class ProspectHandler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             body = {}
 
+        if parsed.path == "/api/auth/register":
+            username = str(body.get("username", "") or "").strip()
+            password = str(body.get("password", "") or "").strip()
+            display_name = str(body.get("display_name", "") or "").strip()
+            invite_code = str(body.get("invite_code", "") or "").strip()
+
+            ok, msg, user_obj = register_user(username, password, display_name, invite_code)
+            if not ok:
+                status_code = 403 if "invitation" in msg.lower() else 400
+                self._send_json({"error": msg}, status=status_code)
+                return
+
+            token = create_session(user_obj["id"])
+            cookie_header = f"session_token={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            self._send_json({
+                "ok": True,
+                "token": token,
+                "user": user_obj
+            }, set_cookie=cookie_header)
+            return
+
+        if parsed.path == "/api/auth/login":
+            username = str(body.get("username", "") or "").strip()
+            password = str(body.get("password", "") or "").strip()
+
+            ok, msg, user_obj = authenticate_user(username, password)
+            if not ok:
+                self._send_json({"error": msg}, status=401)
+                return
+
+            token = create_session(user_obj["id"])
+            cookie_header = f"session_token={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            self._send_json({
+                "ok": True,
+                "token": token,
+                "user": user_obj
+            }, set_cookie=cookie_header)
+            return
+
+        if parsed.path == "/api/auth/logout":
+            token = get_token_from_request(self)
+            if token:
+                delete_session(token)
+            cookie_header = "session_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+            self._send_json({"ok": True}, set_cookie=cookie_header)
+            return
+
         if parsed.path in ("/api/leads/status", "/api/leads/crm"):
-            import datetime
             name = str(body.get("name", "") or "").strip()
             city = str(body.get("city", "") or "").strip()
             has_crm_key = "crm_status" in body
@@ -4523,81 +5493,118 @@ class ProspectHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": f"Statut CRM invalide: {new_status}"}, status=400)
                     return
 
-            now_iso = str(body.get("updated_at") or datetime.datetime.now(datetime.timezone.utc).isoformat())
+            user = get_request_user(self)
+            uid = user["id"] if user else 1
+            now_iso = str(body.get("updated_at") or datetime.now(timezone.utc).isoformat())
 
             with STATE_LOCK:
-                current = load_saved_leads()
-                norm_name = name.lower()
-                norm_city = city.lower()
-                target_lead = None
-                for lead in current:
-                    l_name = str(lead.get("name", "")).strip().lower()
-                    l_city = str(lead.get("city", "")).strip().lower()
-                    if l_name == norm_name and (l_city == norm_city or not l_city or not norm_city):
-                        target_lead = lead
-                        break
+                init_db()
+                conn = get_db_connection()
+                try:
+                    with conn:
+                        name_norm = name.lower()
+                        city_norm = city.lower()
+                        lead_row = conn.execute(
+                            "SELECT id FROM shared_leads WHERE name_norm = ? AND (city_norm = ? OR city_norm = '' OR ? = '');",
+                            (name_norm, city_norm, city_norm),
+                        ).fetchone()
 
-                if target_lead is None:
-                    from urllib.parse import quote_plus
-                    loc = city if city != "Audit Direct" else "Burkina Faso"
-                    q = quote_plus(f"{name} {loc}".strip())
-                    target_lead = {
-                        "name": name,
-                        "city": city,
-                        "neighborhood": "Saisie directe",
-                        "sector": SECTOR_CATEGORIES.get("entreprise", "🏢 Bureaux, Sociétés IT, Conseil & ONG"),
-                        "sector_key": "entreprise",
-                        "phone": "Non renseigné",
-                        "phone_type": "AUCUN",
-                        "tel_url": "",
-                        "email": "",
-                        "website": "",
-                        "facebook_url": "",
-                        "status": "SANS_SITE",
-                        "response_ms": 0,
-                        "issues": [],
-                        "score": 0,
-                        "pitch": "",
-                        "whatsapp_url": "",
-                        "crm_status": new_status if isinstance(new_status, str) else "A_CONTACTER",
-                        "in_pipeline": True,
-                        "rdv_done": False,
-                        "deal_amount": 0,
-                        "notes": "",
-                        "updated_at": now_iso,
-                        "has_fb_pixel": False,
-                        "has_google_analytics": False,
-                        "maps_url": f"https://www.google.com/maps/search/?api=1&query={q}",
-                    }
-                    current.append(target_lead)
+                        if not lead_row:
+                            loc = city if city != "Audit Direct" else "Burkina Faso"
+                            q = quote_plus(f"{name} {loc}".strip())
+                            conn.execute("""
+                                INSERT INTO shared_leads (
+                                    name, city, name_norm, city_norm, neighborhood, sector, sector_key,
+                                    phone, phone_type, tel_url, email, website, facebook_url, status,
+                                    response_ms, issues_json, score, pitch, whatsapp_url, lat, lon,
+                                    maps_url, has_fb_pixel, has_google_analytics, created_at, updated_at
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                            """, (
+                                name, city, name_norm, city_norm,
+                                "Saisie directe",
+                                SECTOR_CATEGORIES.get("entreprise", "🏢 Bureaux, Sociétés IT, Conseil & ONG"),
+                                "entreprise",
+                                "Non renseigné", "AUCUN", "", "", "", "", "SANS_SITE",
+                                0, "[]", 0, "", "", 12.37, -1.52,
+                                f"https://www.google.com/maps/search/?api=1&query={q}",
+                                0, 0, now_iso, now_iso
+                            ))
+                            lead_row = conn.execute(
+                                "SELECT id FROM shared_leads WHERE name_norm = ? AND city_norm = ?;",
+                                (name_norm, city_norm),
+                            ).fetchone()
 
-                if isinstance(new_status, str) and new_status in VALID_CRM_STATUSES:
-                    target_lead["crm_status"] = new_status
-                    if "in_pipeline" not in body:
-                        target_lead["in_pipeline"] = new_status != "NOUVEAU"
+                        lead_id = lead_row["id"]
 
-                if "in_pipeline" in body:
-                    target_lead["in_pipeline"] = bool(body.get("in_pipeline"))
-                if "rdv_done" in body:
-                    target_lead["rdv_done"] = bool(body.get("rdv_done"))
-                if "deal_amount" in body:
-                    target_lead["deal_amount"] = _safe_int_amount(body.get("deal_amount", 0))
-                if "notes" in body:
-                    target_lead["notes"] = str(body.get("notes") or "").strip()[:5000]
-                target_lead["updated_at"] = now_iso
+                        pipe_row = conn.execute(
+                            "SELECT * FROM user_pipelines WHERE user_id = ? AND lead_id = ?;",
+                            (uid, lead_id),
+                        ).fetchone()
 
-                save_leads(current)
+                        cur_status = pipe_row["crm_status"] if pipe_row else "A_CONTACTER"
+                        cur_in_pipe = bool(pipe_row["in_pipeline"]) if pipe_row else False
+                        cur_rdv = bool(pipe_row["rdv_done"]) if pipe_row else False
+                        cur_deal = _safe_int_amount(pipe_row["deal_amount"]) if pipe_row else 0
+                        cur_notes = str(pipe_row["notes"] or "") if pipe_row else ""
+
+                        target_status = new_status if isinstance(new_status, str) and new_status in VALID_CRM_STATUSES else cur_status
+
+                        if "in_pipeline" in body:
+                            target_in_pipe = 1 if body.get("in_pipeline") else 0
+                        elif isinstance(new_status, str):
+                            target_in_pipe = 1 if target_status != "NOUVEAU" else 0
+                        else:
+                            target_in_pipe = 1 if cur_in_pipe else 0
+
+                        target_rdv = 1 if body.get("rdv_done") else (0 if "rdv_done" in body else (1 if cur_rdv else 0))
+                        target_deal = _safe_int_amount(body.get("deal_amount")) if "deal_amount" in body else cur_deal
+                        target_notes = str(body.get("notes") or "").strip()[:5000] if "notes" in body else cur_notes
+
+                        conn.execute("""
+                            INSERT INTO user_pipelines (
+                                user_id, lead_id, crm_status, in_pipeline, rdv_done, deal_amount, notes, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(user_id, lead_id) DO UPDATE SET
+                                crm_status = excluded.crm_status,
+                                in_pipeline = excluded.in_pipeline,
+                                rdv_done = excluded.rdv_done,
+                                deal_amount = excluded.deal_amount,
+                                notes = excluded.notes,
+                                updated_at = excluded.updated_at;
+                        """, (uid, lead_id, target_status, target_in_pipe, target_rdv, target_deal, target_notes, now_iso))
+                finally:
+                    conn.close()
+
+                if uid == 1:
+                    try:
+                        snapshot = load_saved_leads(user_id=1)
+                        payload = json.dumps(snapshot, ensure_ascii=False, indent=2)
+                        unique_suffix = f"{os.getpid()}_{threading.get_ident()}_{time.time_ns()}"
+                        temp_file = STATE_FILE.with_name(f"{STATE_FILE.name}.{unique_suffix}.tmp")
+                        temp_file.write_text(payload, encoding="utf-8")
+                        os.replace(temp_file, STATE_FILE)
+                    except Exception:
+                        try:
+                            STATE_FILE.write_text(payload, encoding="utf-8")
+                        except Exception:
+                            pass
+                    finally:
+                        if 'temp_file' in locals() and temp_file.exists():
+                            try:
+                                temp_file.unlink()
+                            except Exception:
+                                pass
 
             self._send_json({
                 "ok": True,
                 "name": name,
                 "city": city,
-                "crm_status": target_lead.get("crm_status", "A_CONTACTER"),
-                "in_pipeline": bool(target_lead.get("in_pipeline", True)),
-                "rdv_done": bool(target_lead.get("rdv_done", False)),
-                "deal_amount": _safe_int_amount(target_lead.get("deal_amount", 0)),
-                "notes": str(target_lead.get("notes") or ""),
-                "updated_at": target_lead.get("updated_at", now_iso),
+                "crm_status": target_status,
+                "in_pipeline": bool(target_in_pipe),
+                "rdv_done": bool(target_rdv),
+                "deal_amount": target_deal,
+                "notes": target_notes,
+                "updated_at": now_iso,
             })
             return
 
@@ -4630,10 +5637,13 @@ class ProspectHandler(BaseHTTPRequestHandler):
             audited = audit_single_business(lead)
             lead_dict = lead_to_dict(audited)
 
+            user = get_request_user(self)
+            uid = user["id"] if user else 1
+
             with STATE_LOCK:
-                current = load_saved_leads()
+                current = load_saved_leads(user_id=uid)
                 merged = merge_leads(current, [lead_dict])
-                save_leads(merged)
+                save_leads(merged, user_id=uid)
                 norm_key = f"{name.lower()}|audit direct"
                 merged_lead = next(
                     (
@@ -4673,9 +5683,13 @@ class ProspectHandler(BaseHTTPRequestHandler):
                 f"{str(d.get('name', '')).strip().lower()}|{str(d.get('city', '')).strip().lower()}"
                 for d in incoming_dicts
             }
+
+            user = get_request_user(self)
+            uid = user["id"] if user else 1
+
             with STATE_LOCK:
-                merged_dicts = merge_leads(load_saved_leads(), incoming_dicts)
-                save_leads(merged_dicts)
+                merged_dicts = merge_leads(load_saved_leads(user_id=uid), incoming_dicts)
+                save_leads(merged_dicts, user_id=uid)
             known_in_scan = sum(
                 1
                 for item in merged_dicts
@@ -4695,15 +5709,11 @@ class ProspectHandler(BaseHTTPRequestHandler):
 
 def _seed_initial_leads_async() -> None:
     should_seed = False
-    if not STATE_FILE.exists():
-        should_seed = True
-    else:
-        try:
-            existing = load_saved_leads()
-            covered_sectors = {d.get("sector_key") for d in existing if d.get("sector_key")}
-            if len(existing) < 40 or len(covered_sectors) < 10:
-                should_seed = True
-        except Exception:
+    init_db()
+    with STATE_LOCK:
+        existing = load_saved_leads(user_id=1)
+        covered_sectors = {d.get("sector_key") for d in existing if d.get("sector_key")}
+        if len(existing) < 40 or len(covered_sectors) < 10:
             should_seed = True
 
     if should_seed:
@@ -4717,20 +5727,22 @@ def _seed_initial_leads_async() -> None:
             )
             incoming = [lead_to_dict(b) for b in audited]
             with STATE_LOCK:
-                existing = load_saved_leads() if STATE_FILE.exists() else []
+                existing = load_saved_leads(user_id=1)
                 merged = merge_leads(existing, incoming)
-                save_leads(merged)
+                save_leads(merged, user_id=1)
             print(f"[+] Base de leads initialisée avec succès ({len(merged)} prospects multi-secteurs).", flush=True)
         except Exception as exc:
             print(f"[!] Erreur init arrière-plan: {exc}", flush=True)
 
 
+
 def run_server(port: int | None = None) -> None:
     import os
     actual_port = int(port or os.environ.get("PORT", 8080))
+    init_db()
     threading.Thread(target=_seed_initial_leads_async, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", actual_port), ProspectHandler)
-    print(f"[OK] Serveur ProspectBF v2.6 Mobile-Responsive actif sur port {actual_port}", flush=True)
+    print(f"[OK] Serveur ProspectBF v2.7 Mobile-Responsive & Multi-User actif sur port {actual_port}", flush=True)
     server.serve_forever()
 
 
