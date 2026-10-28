@@ -346,6 +346,7 @@ def create_session(user_id: int) -> str:
         conn = get_db_connection()
         try:
             with conn:
+                conn.execute("DELETE FROM sessions WHERE expires_at <= ?;", (now.isoformat(),))
                 conn.execute(
                     "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?);",
                     (token, user_id, now.isoformat(), expires.isoformat()),
@@ -372,6 +373,8 @@ def get_user_by_session(token: str) -> dict | None:
             row = cur.fetchone()
             if row:
                 return dict(row)
+            with conn:
+                conn.execute("DELETE FROM sessions WHERE token = ? AND expires_at <= ?;", (token, now_str))
             return None
         finally:
             conn.close()
@@ -392,12 +395,12 @@ def delete_session(token: str) -> None:
 def register_user(username: str, password: str, display_name: str, invite_code: str) -> tuple[bool, str, dict | None]:
     init_db()
     invite_code = invite_code.strip()
-    if invite_code != DEFAULT_INVITE_CODE:
+    if invite_code.upper() != DEFAULT_INVITE_CODE.strip().upper():
         return False, "Code d'invitation agence invalide", None
 
     username = username.strip()
-    if len(username) < 3 or not re.match(r"^[a-zA-Z0-9_.@-]{3,50}$", username):
-        return False, "Nom d'utilisateur invalide (3 à 50 caractères alphanumériques)", None
+    if len(username) < 3 or not re.match(r"^[a-zA-Z0-9_.@+-]{3,100}$", username):
+        return False, "Nom d'utilisateur invalide (3 à 100 caractères alphanumériques ou email)", None
 
     password = password.strip()
     if len(password) < 6:
@@ -419,11 +422,15 @@ def register_user(username: str, password: str, display_name: str, invite_code: 
 
                 hashed, salt = hash_password(password)
                 now_str = datetime.now(timezone.utc).isoformat()
-                cur_ins = conn.execute(
-                    "INSERT INTO users (username, display_name, password_hash, password_salt, role, created_at) VALUES (?, ?, ?, ?, ?, ?);",
-                    (username, display_name, hashed, salt, role, now_str),
-                )
-                user_id = cur_ins.lastrowid
+                try:
+                    cur_ins = conn.execute(
+                        "INSERT INTO users (username, display_name, password_hash, password_salt, role, created_at) VALUES (?, ?, ?, ?, ?, ?);",
+                        (username, display_name, hashed, salt, role, now_str),
+                    )
+                    user_id = cur_ins.lastrowid
+                except sqlite3.IntegrityError:
+                    return False, "Ce nom d'utilisateur est déjà utilisé", None
+
                 user_obj = {
                     "id": user_id,
                     "username": username,
@@ -2783,6 +2790,8 @@ INDEX_HTML = """<!DOCTYPE html>
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
       padding: 22px 20px;
       border: 1px solid var(--border);
+      max-height: 90vh;
+      overflow-y: auto;
       animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes modalScaleIn {
@@ -4019,6 +4028,11 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   async function addLeadToPipeline(name, city) {
+    if (!CURRENT_USER) {
+      openAuthModal('login');
+      showBanner('🔒 Connexion requise : Veuillez vous connecter avec votre compte agence pour ajouter un prospect.');
+      return;
+    }
     const match = findLeadByNameCity(name, city);
     if (!match) return;
     if (match.claimed_by && !match.is_claimed_by_me && typeof confirm === 'function') {
@@ -4036,6 +4050,11 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   async function setLeadCrmStatus(name, newStatus, city) {
+    if (!CURRENT_USER) {
+      openAuthModal('login');
+      showBanner('🔒 Connexion requise : Veuillez vous connecter pour modifier le statut commercial.');
+      return;
+    }
     const match = findLeadByNameCity(name, city);
     if (match) {
       match.crm_status = newStatus;
@@ -4050,6 +4069,11 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   async function toggleLeadRdvDone(name, city) {
+    if (!CURRENT_USER) {
+      openAuthModal('login');
+      showBanner('🔒 Connexion requise : Veuillez vous connecter pour valider un rendez-vous.');
+      return;
+    }
     const match = findLeadByNameCity(name, city);
     if (!match) return;
     match.rdv_done = !Boolean(match.rdv_done);
@@ -4066,6 +4090,11 @@ INDEX_HTML = """<!DOCTYPE html>
   }
 
   async function updateLeadMeta(name, city, fields) {
+    if (!CURRENT_USER) {
+      openAuthModal('login');
+      showBanner('🔒 Connexion requise : Veuillez vous connecter pour modifier les montants et notes de suivi.');
+      return;
+    }
     const match = findLeadByNameCity(name, city);
     if (!match) return;
     if (fields.deal_amount !== undefined) {
@@ -4262,13 +4291,18 @@ INDEX_HTML = """<!DOCTYPE html>
     return arr;
   }
 
+  function getStorageKey() {
+    const uid = CURRENT_USER && CURRENT_USER.id ? CURRENT_USER.id : 'guest';
+    return `prospectbf_leads_v26_u${uid}`;
+  }
+
   function saveLocalBackup() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(LEADS)); } catch (e) {}
+    try { localStorage.setItem(getStorageKey(), JSON.stringify(LEADS)); } catch (e) {}
   }
 
   function loadLocalBackup() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(getStorageKey());
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) { return []; }
@@ -4646,24 +4680,38 @@ INDEX_HTML = """<!DOCTYPE html>
 
   async function loadInitialLeads() {
     await checkAuthStatus();
-    const localLeads = loadLocalBackup();
     try {
       const res = await fetch('/api/leads');
-      const data = await res.json();
-      const serverLeads = data.leads || [];
-      LEADS = dedupeAndSortLeads([...serverLeads, ...localLeads]);
-      saveLocalBackup();
-    } catch (e) { LEADS = localLeads; }
+      if (res.ok) {
+        const data = await res.json();
+        LEADS = Array.isArray(data.leads) ? data.leads : [];
+        saveLocalBackup();
+      } else {
+        LEADS = loadLocalBackup();
+      }
+    } catch (e) {
+      LEADS = loadLocalBackup();
+    }
     populateFilterDropdowns();
     setSalesOffer(CURRENT_OFFER);
     switchAppView('scanner');
   }
 
   async function clearAllLeads() {
+    if (!CURRENT_USER || CURRENT_USER.role !== 'admin') {
+      showBanner("🔒 Action réservée à la direction de l'agence (Admin connecté).");
+      return;
+    }
     if (!confirm('Voulez-vous vraiment vider toute la liste actuelle ?')) return;
     LEADS = [];
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    try { await fetch('/api/clear', { method: 'POST' }); } catch (e) {}
+    try { localStorage.removeItem(getStorageKey()); } catch (e) {}
+    try {
+      const res = await fetch('/api/clear', { method: 'POST' });
+      if (!res.ok) {
+        showBanner('Erreur lors de la suppression sur le serveur.');
+        return;
+      }
+    } catch (e) {}
     populateFilterDropdowns();
     render();
     showBanner('🗑️ Liste vidée. Lance un nouveau scan quand tu veux !');
@@ -4893,12 +4941,12 @@ INDEX_HTML = """<!DOCTYPE html>
       ? `<div style="margin-top:10px;"><button type="button" class="btn-stage-action btn-stage-rdv-check ${b.rdv_done ? 'done' : ''}" style="width:100%;" onclick="toggleLeadRdvDone(decodeURIComponent('${encName}'), decodeURIComponent('${encCity}'))">${b.rdv_done ? '☑️ Rendez-vous Fait ! (Validé)' : '⬜ Cliquer ici quand le Rendez-vous est Fait'}</button></div>`
       : '';
 
-    const claimAlertHtml = (b.claimed_by && !b.is_claimed_by_me)
-      ? `<div style="background:#fef3c7; border:1px solid #fcd34d; color:#92400e; padding:10px 14px; border-radius:8px; font-size:0.8rem; font-weight:700; margin-bottom:14px;">📌 Ce prospect est actuellement traité par <u>${escapeHtml(b.claimed_by_name || b.claimed_by)}</u> dans son pipeline commercial.</div>`
+    const visitorAlertHtml = !CURRENT_USER
+      ? `<div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:10px 14px; border-radius:8px; font-size:0.8rem; font-weight:700; margin-bottom:14px;">🔒 Vous consultez ce prospect en mode visiteur. <button type="button" onclick="openAuthModal('login')" style="background:none; border:none; color:#2563eb; text-decoration:underline; font-weight:800; cursor:pointer; padding:0;">Connectez-vous</button> pour gérer votre pipeline commercial.</div>`
       : '';
 
     const bodyEl = document.getElementById('drawerBodyContent');
-    bodyEl.innerHTML = `${claimAlertHtml}<div class="drawer-section"><div class="drawer-section-title"><span>📊 Diagnostic Technique Complet</span><span class="status-pill st-${b.status}">${(b.status || '').replace('_', ' ')}</span></div>` +
+    bodyEl.innerHTML = `${visitorAlertHtml}${claimAlertHtml}<div class="drawer-section"><div class="drawer-section-title"><span>📊 Diagnostic Technique Complet</span><span class="status-pill st-${b.status}">${(b.status || '').replace('_', ' ')}</span></div>` +
       `<div class="diag-grid">` +
       `<div class="diag-item"><span class="diag-lbl">Score d'Opportunité</span><span class="diag-val" style="color:${scoreColor}; font-size:1.1rem;">${b.score || 0} / 100</span></div>` +
       `<div class="diag-item"><span class="diag-lbl">Temps de Réponse HTTP</span><span class="diag-val">${b.response_ms ? b.response_ms + ' ms' : 'Non mesuré / Sans site'}</span></div>` +
@@ -5408,8 +5456,8 @@ class ProspectHandler(BaseHTTPRequestHandler):
                 self._send_json({"authenticated": False, "user": None})
             return
         if parsed.path == "/api/admin/overview":
-            user = get_request_user(self) or DEFAULT_ADMIN_USER
-            if user.get("role") != "admin":
+            user = get_request_user(self)
+            if not user or user.get("role") != "admin":
                 self._send_json({"error": "Accès réservé aux administrateurs"}, status=403)
                 return
             overview = get_admin_overview()
@@ -5609,6 +5657,10 @@ class ProspectHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/clear":
+            user = get_request_user(self)
+            if not user or user.get("role") != "admin":
+                self._send_json({"error": "Action réservée à la direction agence (admin)"}, status=403)
+                return
             save_leads([])
             self._send_json({"ok": True})
             return

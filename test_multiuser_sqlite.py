@@ -182,6 +182,21 @@ class MultiUserSQLiteTests(unittest.TestCase):
         self.assertEqual(resp.get("user", {}).get("username"), "moussa")
         self.assertIn("session_token=", hdrs.get("set-cookie", ""))
 
+        # 3. Accept lowercase invite code (case-insensitivity for mobile UX)
+        st, resp_lower, _ = http_req(
+            f"{self.server.base_url}/api/auth/register",
+            method="POST",
+            data={
+                "username": "rep+ouaga@agency.bf",
+                "password": "password123",
+                "display_name": "Rep Email Plus",
+                "invite_code": server_bf.DEFAULT_INVITE_CODE.lower(),
+            },
+        )
+        self.assertEqual(st, 200)
+        self.assertTrue(resp_lower.get("ok"))
+        self.assertEqual(resp_lower.get("user", {}).get("username"), "rep+ouaga@agency.bf")
+
     def test_04_pbkdf2_hmac_password_hashing(self):
         """Passwords are never stored in plaintext and use PBKDF2 HMAC SHA-256 with random salt."""
         h1, s1 = server_bf.hash_password("mon_mot_de_passe")
@@ -258,6 +273,28 @@ class MultiUserSQLiteTests(unittest.TestCase):
             headers={"Authorization": f"Bearer {token}"},
         )
         self.assertFalse(me_after.get("authenticated"))
+
+        # Test session expiration & cleanup
+        db_path = server_bf.get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ('expired_tok_xyz', 1, '2020-01-01T00:00:00Z', '2020-01-02T00:00:00Z');"
+        )
+        conn.commit()
+        conn.close()
+
+        st_exp, me_exp, _ = http_req(
+            f"{self.server.base_url}/api/auth/me",
+            headers={"Authorization": "Bearer expired_tok_xyz"},
+        )
+        self.assertEqual(st_exp, 200)
+        self.assertFalse(me_exp.get("authenticated"))
+
+        # Verify expired token was opportunistically purged from DB
+        conn = sqlite3.connect(str(db_path))
+        cur = conn.execute("SELECT COUNT(*) FROM sessions WHERE token = 'expired_tok_xyz';")
+        self.assertEqual(cur.fetchone()[0], 0, "Expired session token must be pruned from SQLite")
+        conn.close()
 
     def test_06_shared_radar_and_private_pipeline_isolation(self):
         """
@@ -336,6 +373,14 @@ class MultiUserSQLiteTests(unittest.TestCase):
 
     def test_07_admin_overview_role_protection_and_kpis(self):
         """Admin overview (/api/admin/overview) is protected by role and calculates consolidated agency revenue."""
+        # 0. Unauthenticated access to /api/admin/overview -> HTTP 403 (Security check)
+        st_unauth, _, _ = http_req(f"{self.server.base_url}/api/admin/overview")
+        self.assertEqual(st_unauth, 403, "Unauthenticated visitors must not access agency overview")
+
+        # 0b. Unauthenticated access to /api/clear -> HTTP 403
+        st_clear_unauth, _, _ = http_req(f"{self.server.base_url}/api/clear", method="POST")
+        self.assertEqual(st_clear_unauth, 403, "Unauthenticated callers must not clear agency database")
+
         # Register a commercial
         _, r_comm, _ = http_req(
             f"{self.server.base_url}/api/auth/register",
@@ -351,6 +396,14 @@ class MultiUserSQLiteTests(unittest.TestCase):
         )
         self.assertEqual(st, 403)
         self.assertIn("réservé", forbidden_resp.get("error", "").lower())
+
+        # Commercial cannot call /api/clear -> HTTP 403
+        st_clear_comm, _, _ = http_req(
+            f"{self.server.base_url}/api/clear",
+            method="POST",
+            headers={"Authorization": f"Bearer {token_comm}"},
+        )
+        self.assertEqual(st_clear_comm, 403)
 
         # Admin logs in
         st, admin_login, _ = http_req(
