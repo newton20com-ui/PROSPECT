@@ -806,48 +806,36 @@ INDEX_HTML = """<!DOCTYPE html>
 
     @media (min-width: 600px) {
       .selects-grid {
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
     }
 
-    /* Multi-Criteria Filter Chips Bar (SaaS Light Aesthetic) */
-    .chips-filter-wrapper {
-      margin-top: 14px;
-      padding-top: 12px;
+    /* Unified Filter Chips Bar (SaaS Clean Single-Panel Design) */
+    .unified-chips-bar {
+      margin-top: 10px;
+      padding-top: 10px;
       border-top: 1px dashed var(--border);
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 10px;
     }
 
-    .chips-group {
-      display: flex;
-      flex-direction: column;
+    .chips-subgroup {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
     }
 
-    .chips-group-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .chips-group-title {
-      font-size: 0.72rem;
+    .chips-mini-label {
+      font-size: 0.70rem;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #64748b;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .chips-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      color: #94a3b8;
+      margin-right: 2px;
+      user-select: none;
     }
 
     .filter-chip {
@@ -856,14 +844,14 @@ INDEX_HTML = """<!DOCTYPE html>
       background: #ffffff;
       border: 1px solid #cbd5e1;
       border-radius: 9999px;
-      padding: 5px 12px;
-      font-size: 0.76rem;
+      padding: 4px 10px;
+      font-size: 0.74rem;
       font-weight: 600;
       color: #334155;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.15s ease-in-out;
       user-select: none;
       white-space: nowrap;
@@ -877,9 +865,9 @@ INDEX_HTML = """<!DOCTYPE html>
     }
 
     .filter-chip .chip-cnt {
-      font-size: 0.70rem;
+      font-size: 0.68rem;
       font-weight: 700;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 9999px;
       background: #f1f5f9;
       color: #64748b;
@@ -981,13 +969,13 @@ INDEX_HTML = """<!DOCTYPE html>
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
       border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.78rem;
+      padding: 6px 12px;
+      font-size: 0.76rem;
       color: #15803d;
       font-weight: 600;
-      margin-top: 4px;
+      margin-top: 8px;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
 
     .filter-summary {
@@ -2403,68 +2391,61 @@ INDEX_HTML = """<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- RESPONSIVE FILTERS -->
+      <!-- CONSOLE DE FILTRAGE UNIFIÉE & COMPACTE -->
       <div class="filters-box">
         <div class="search-row">
-          <input type="search" id="searchInput" placeholder="🔎 Rechercher par nom d'entreprise, quartier, ville, note, problème technique..." />
-          <button class="btn btn-reset" onclick="resetFilters()">🔄 Réinitialiser</button>
+          <input type="search" id="searchInput" placeholder="🔎 Rechercher un nom d'entreprise, quartier, ville, note, téléphone..." />
+          <button type="button" class="btn btn-reset" onclick="resetFilters()">🔄 Tout réinitialiser</button>
         </div>
+
         <div class="selects-grid">
-          <select id="cityFilter"></select>
-          <select id="crmFilter"></select>
-          <select id="statusFilter"></select>
-          <select id="sectorFilter"></select>
-          <select id="phoneFilter"></select>
+          <select id="cityFilter" title="Filtrer par Ville"></select>
+          <select id="sectorFilter" title="Filtrer par Secteur"></select>
+          <select id="crmFilter" title="Filtrer par Statut Pipeline"></select>
+          <!-- Éléments masqués maintenus pour compatibilité des tests et synchronisation JS -->
+          <select id="statusFilter" style="display:none;"></select>
+          <select id="phoneFilter" style="display:none;"></select>
         </div>
 
-        <!-- MULTI-CRITERIA INTERACTIVE CHIPS (COMBINAISONS MULTIPLES) -->
-        <div class="chips-filter-wrapper">
-          <div class="chips-group">
-            <div class="chips-group-header">
-              <span class="chips-group-title">🌐 1. Diagnostic & Site Web <small style="font-weight:600; text-transform:none; color:var(--muted);">(multi-sélection cumulable)</small></span>
-            </div>
-            <div class="chips-row">
-              <button type="button" id="chip_web_SANS_SITE" class="filter-chip chip-web" onclick="toggleWebStatusFilter('SANS_SITE')" title="Entreprises sans site web propre (avec ou sans Facebook)"><span class="chip-icon" id="icon_web_SANS_SITE">🚀</span> <span>Sans site web</span> <span class="chip-cnt" id="cnt_web_SANS_SITE">0</span></button>
-              <button type="button" id="chip_web_SITE_MORT" class="filter-chip chip-dead" onclick="toggleWebStatusFilter('SITE_MORT')" title="Site web hors-ligne, erreur serveur HTTP ou SSL expiré"><span class="chip-icon" id="icon_web_SITE_MORT">🔥</span> <span>Site mort / Erreur</span> <span class="chip-cnt" id="cnt_web_SITE_MORT">0</span></button>
-              <button type="button" id="chip_web_SITE_FAIBLE" class="filter-chip chip-weak" onclick="toggleWebStatusFilter('SITE_FAIBLE')" title="Site web lent ou sans chiffrement SSL HTTPS"><span class="chip-icon" id="icon_web_SITE_FAIBLE">⚠️</span> <span>Site lent / Faible</span> <span class="chip-cnt" id="cnt_web_SITE_FAIBLE">0</span></button>
-              <button type="button" id="chip_web_SITE_OK" class="filter-chip chip-ok" onclick="toggleWebStatusFilter('SITE_OK')" title="Site web opérationnel"><span class="chip-icon" id="icon_web_SITE_OK">✅</span> <span>Site fonctionnel OK</span> <span class="chip-cnt" id="cnt_web_SITE_OK">0</span></button>
-            </div>
+        <!-- Badges interactifs consolidés (Sans doublons) -->
+        <div class="unified-chips-bar">
+          <div class="chips-subgroup">
+            <span class="chips-mini-label">Diagnostic Web :</span>
+            <button type="button" id="chip_web_SANS_SITE" class="filter-chip chip-web" onclick="toggleWebStatusFilter('SANS_SITE')" title="Entreprises sans site web propre"><span class="chip-icon" id="icon_web_SANS_SITE">🚀</span> <span>Sans site</span> <span class="chip-cnt" id="cnt_web_SANS_SITE">0</span></button>
+            <button type="button" id="chip_web_SITE_MORT" class="filter-chip chip-dead" onclick="toggleWebStatusFilter('SITE_MORT')" title="Site web hors-ligne, erreur serveur HTTP ou SSL expiré"><span class="chip-icon" id="icon_web_SITE_MORT">🔥</span> <span>Site mort</span> <span class="chip-cnt" id="cnt_web_SITE_MORT">0</span></button>
+            <button type="button" id="chip_web_SITE_FAIBLE" class="filter-chip chip-weak" onclick="toggleWebStatusFilter('SITE_FAIBLE')" title="Site web lent ou sans chiffrement SSL HTTPS"><span class="chip-icon" id="icon_web_SITE_FAIBLE">⚠️</span> <span>Site lent</span> <span class="chip-cnt" id="cnt_web_SITE_FAIBLE">0</span></button>
+            <button type="button" id="chip_web_SITE_OK" class="filter-chip chip-ok" onclick="toggleWebStatusFilter('SITE_OK')" title="Site web opérationnel"><span class="chip-icon" id="icon_web_SITE_OK">✅</span> <span>Site OK</span> <span class="chip-cnt" id="cnt_web_SITE_OK">0</span></button>
           </div>
 
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px;">
-            <div class="chips-group">
-              <div class="chips-group-header">
-                <span class="chips-group-title">📘 2. Présence Page Facebook</span>
-              </div>
-              <div class="chips-row">
-                <button type="button" id="chip_fb_YES" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITH_FB')" title="A une page Facebook détectée"><span class="chip-icon" id="icon_fb_YES">📘</span> <span>Avec Page Facebook</span> <span class="chip-cnt" id="cnt_fb_YES">0</span></button>
-                <button type="button" id="chip_fb_NO" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITHOUT_FB')" title="Aucune page Facebook trouvée"><span class="chip-icon" id="icon_fb_NO">🚫</span> <span>Sans Facebook</span> <span class="chip-cnt" id="cnt_fb_NO">0</span></button>
-              </div>
-            </div>
-
-            <div class="chips-group">
-              <div class="chips-group-header">
-                <span class="chips-group-title">📞 3. Canal de Contact Direct</span>
-              </div>
-              <div class="chips-row">
-                <button type="button" id="chip_phone_WA" class="filter-chip chip-wa" onclick="togglePhoneTypeFilter('MOBILE_WHATSAPP')" title="Numéro mobile compatible WhatsApp direct"><span class="chip-icon" id="icon_phone_WA">💬</span> <span>WhatsApp Direct</span> <span class="chip-cnt" id="cnt_phone_WA">0</span></button>
-                <button type="button" id="chip_phone_FIXE" class="filter-chip chip-fixe" onclick="togglePhoneTypeFilter('FIXE_ONATEL')" title="Ligne fixe ONATEL"><span class="chip-icon" id="icon_phone_FIXE">☎️</span> <span>Fixe ONATEL</span> <span class="chip-cnt" id="cnt_phone_FIXE">0</span></button>
-              </div>
-            </div>
+          <div class="chips-subgroup">
+            <span class="chips-mini-label">Réseaux :</span>
+            <button type="button" id="chip_fb_YES" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITH_FB')" title="A une page Facebook"><span class="chip-icon" id="icon_fb_YES">📘</span> <span>Avec Facebook</span> <span class="chip-cnt" id="cnt_fb_YES">0</span></button>
+            <button type="button" id="chip_fb_NO" class="filter-chip chip-fb" onclick="toggleFacebookFilter('WITHOUT_FB')" title="Sans page Facebook"><span class="chip-icon" id="icon_fb_NO">🚫</span> <span>Sans Facebook</span> <span class="chip-cnt" id="cnt_fb_NO">0</span></button>
           </div>
 
-          <div class="chips-group">
-            <div class="chips-group-header">
-              <span class="chips-group-title">🎯 4. Tracking & Opportunités Marketing</span>
-            </div>
-            <div class="chips-row">
-              <button type="button" id="chip_track_NO_PIXEL" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_PIXEL')" title="Pas de Pixel Facebook (cible vente Meta Ads)"><span class="chip-icon" id="icon_track_NO_PIXEL">🎯</span> <span>Sans Pixel Meta</span> <span class="chip-cnt" id="cnt_track_NO_PIXEL">0</span></button>
-              <button type="button" id="chip_track_NO_GA" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_GA')" title="Pas de Google Analytics détecté"><span class="chip-icon" id="icon_track_NO_GA">📊</span> <span>Sans Google Analytics</span> <span class="chip-cnt" id="cnt_track_NO_GA">0</span></button>
-            </div>
+          <div class="chips-subgroup">
+            <span class="chips-mini-label">Contact :</span>
+            <button type="button" id="chip_phone_WA" class="filter-chip chip-wa" onclick="togglePhoneTypeFilter('MOBILE_WHATSAPP')" title="Numéro mobile compatible WhatsApp direct"><span class="chip-icon" id="icon_phone_WA">💬</span> <span>WhatsApp Direct</span> <span class="chip-cnt" id="cnt_phone_WA">0</span></button>
+            <button type="button" id="chip_phone_FIXE" style="display:none;"><span class="chip-icon" id="icon_phone_FIXE"></span><span class="chip-cnt" id="cnt_phone_FIXE"></span></button>
           </div>
 
-          <div id="activeFiltersSummary" class="active-filters-banner"></div>
+          <div class="chips-subgroup">
+            <span class="chips-mini-label">Opportunités :</span>
+            <button type="button" id="chip_track_NO_PIXEL" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_PIXEL')" title="Pas de Pixel Facebook (cible vente Meta Ads)"><span class="chip-icon" id="icon_track_NO_PIXEL">🎯</span> <span>Sans Pixel Meta</span> <span class="chip-cnt" id="cnt_track_NO_PIXEL">0</span></button>
+            <button type="button" id="chip_track_NO_GA" class="filter-chip chip-track" onclick="toggleTrackingFilter('NO_GA')" title="Pas de Google Analytics détecté"><span class="chip-icon" id="icon_track_NO_GA">📊</span> <span>Sans Analytics</span> <span class="chip-cnt" id="cnt_track_NO_GA">0</span></button>
+          </div>
         </div>
+
+        <div id="radarMemoryToggleBar" class="radar-memory-toggle-bar">
+          <label class="toggle-known-label" for="hideKnownLeadsToggle">
+            <input type="checkbox" id="hideKnownLeadsToggle" onchange="render()" />
+            <span>🙈 Masquer ceux déjà dans mon Pipeline / Échecs (Ne voir que les nouveaux)</span>
+          </label>
+          <span id="radarKnownSummaryText" style="font-size:0.76rem; color:var(--muted);"></span>
+        </div>
+
+        <div id="activeFiltersSummary" class="active-filters-banner"></div>
+      </div>
         <div id="radarMemoryToggleBar" class="radar-memory-toggle-bar">
           <label class="toggle-known-label" for="hideKnownLeadsToggle">
             <input type="checkbox" id="hideKnownLeadsToggle" onchange="render()" />
@@ -3461,7 +3442,7 @@ INDEX_HTML = """<!DOCTYPE html>
     const curPhone = phoneEl.value || 'ALL';
 
     const cities = Array.from(new Set(LEADS.map(b => b.city).filter(Boolean)));
-    let cityHtml = `<option value="ALL">📍 Toutes villes (${LEADS.length})</option>`;
+    let cityHtml = `<option value="ALL">📍 Ville : Toutes (${LEADS.length})</option>`;
     cities.forEach(c => {
       const cnt = LEADS.filter(b => b.city === c).length;
       cityHtml += `<option value="${c}">📍 ${c} (${cnt})</option>`;
@@ -3482,7 +3463,7 @@ INDEX_HTML = """<!DOCTYPE html>
       ? `<option value="NOUVEAU">🔍 Nouveaux non classés (${untriagedCount})</option>`
       : '';
 
-    crmEl.innerHTML = `<option value="ALL">📋 Tous statuts CRM (${CURRENT_VIEW === 'crm' ? pipeLeads.length : LEADS.length})</option>` +
+    crmEl.innerHTML = `<option value="ALL">📋 Pipeline : Tout afficher (${CURRENT_VIEW === 'crm' ? pipeLeads.length : LEADS.length})</option>` +
       untriagedOptHtml +
       `<option value="A_CONTACTER">📥 1. À contacter (${countAContacter})</option>` +
       `<option value="CONTACTE">⏳ 2. Déjà contacté (${countContacte})</option>` +
@@ -3498,7 +3479,7 @@ INDEX_HTML = """<!DOCTYPE html>
     statusEl.innerHTML = `<option value="ALL">📊 Tous (${LEADS.length})</option><option value="CUSTOM">⚡ Filtres combinés</option><option value="SITE_MORT">🔥 Cassés (${countStatus('SITE_MORT')})</option><option value="FACEBOOK_SEUL">📱 FB Seul (${countStatus('FACEBOOK_SEUL')})</option><option value="HAS_FACEBOOK">📘 Avec FB (${countHasFb})</option><option value="SITE_FAIBLE">⚠️ Lents/Sans SSL (${countStatus('SITE_FAIBLE')})</option><option value="SANS_SITE">🚀 Sans site (${countStatus('SANS_SITE')})</option><option value="SITE_OK">✅ OK (${countStatus('SITE_OK')})</option>`;
     statusEl.value = curStatus;
 
-    let sectorHtml = `<option value="ALL">🏢 Tous secteurs (${LEADS.length})</option>`;
+    let sectorHtml = `<option value="ALL">🏢 Secteur : Tous (${LEADS.length})</option>`;
     Object.keys(SECTOR_LABELS).forEach(k => {
       if (k === 'all') return;
       const c = LEADS.filter(b => getLeadSectorKey(b) === k).length;
@@ -3647,7 +3628,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
     if (view === 'scanner') {
       if (secAcq) secAcq.style.display = 'block';
-      if (secOff) secOff.style.display = 'block';
+      if (secOff) secOff.style.display = 'none';
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'grid';
       if (crmStrip) crmStrip.style.display = 'none';
@@ -3669,10 +3650,10 @@ INDEX_HTML = """<!DOCTYPE html>
       if (crmStrip) crmStrip.style.display = 'none';
       if (finBanner) finBanner.style.display = 'none';
       if (toggleBar) toggleBar.style.display = 'flex';
-      if (ctxTitle) ctxTitle.innerHTML = "<strong>🎯 Espace Actif : Stratégie d'Offres & Pitchs</strong> — Adaptez automatiquement vos messages WhatsApp (Site Web, Facebook Ads, Google Maps).";
+      if (ctxTitle) ctxTitle.innerHTML = "<strong>🎯 Espace Actif : Stratégie d'Offres & Pitchs</strong> — Adaptez vos messages WhatsApp (Site Web, Facebook Ads, Google Maps).";
     } else if (view === 'crm') {
       if (secAcq) secAcq.style.display = 'none';
-      if (secOff) secOff.style.display = 'block';
+      if (secOff) secOff.style.display = 'none';
       if (secPros) secPros.style.display = 'block';
       if (kpiStrip) kpiStrip.style.display = 'none';
       if (crmStrip) crmStrip.style.display = 'grid';
